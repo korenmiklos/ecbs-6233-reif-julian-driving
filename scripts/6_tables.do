@@ -4,6 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
+global Driving .
 do "$Driving/scripts/programs/_config.do"
 
 ************
