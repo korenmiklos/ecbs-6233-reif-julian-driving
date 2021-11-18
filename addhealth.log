@@ -1,0 +1,219 @@
+
+  ___  ____  ____  ____  ____ ©
+ /__    /   ____/   /   ____/      17.0
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2021 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-STATA-PC        https://www.stata.com
+                                   979-696-4600        stata@stata.com
+
+Stata license: Single-user 2-core  perpetual
+Serial number: 501706328764
+  Licensed to: Miklos Koren
+               CEU MicroData
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000; see help set_maxvar.
+
+. do scripts/analysis/addhealth.do 
+
+. ************
+. * SCRIPT: 4_analysis.do
+. * PURPOSE: Estimate RD regressions
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "scripts/libraries/stata"
+  [1]              "scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile results male_female
+
+. local regsave_settings "tstat pval ci cmdline"
+
+. 
+. local adjustedp 1
+
+. 
+. ***
+. * Formatting settings for graphs
+. ***
+. * Titles and label formatting
+. local xtitlesize "size(medlarge)"
+
+. local ytitlesize "size(medlarge)"
+
+. local xlabsize "labsize(medium)"
+
+. local ylabsize "labsize(medium)"
+
+.         
+. * Marker and line fit formatting
+. local mformat "msym(oh) mcol(red) msize(medlarge)"
+
+. local mformat2 "msym(sh) mcol(blue) msize(medlarge)"
+
+. local mformat3 "msym(x) mcol(green) msize(medlarge)"
+
+. local lformat "clcolor(black) lwidth(medthick)"
+
+. local lformat2 "clcolor(black) lwidth(medthick) lpattern(dash)"
+
+. local legendsize "size(medlarge)"
+
+. 
+. ***
+. * Standardized preperation code for the RD regressions
+. ***
+. do "scripts/programs/prep_data_rd.do"
+
+. cap program drop prep_data_rd
+
+. program define prep_data_rd
+  1. 
+.         syntax , bandwidth(integer)
+  2.         
+.         isid agemo_mda
+  3.         
+.         * Death rates per 100,000 person-years (divide population by 12 age-m
+> onths)
+.         * Account for the fact that there are 12 ages in months in a single c
+> alendar month (e.g. 16y0m, 16y1m,.., 16y11m in January 1998) 
+.         * Note: all death rate vars begin with "cod"
+.         cap unab death_rate_vars : cod*
+  4.         qui foreach  y of local death_rate_vars {
+  5.                 replace `y'=100000*`y'/(pop/12)
+  6.                 label var `y' "Deaths per 100,000"
+  7.         }       
+  8.         
+.         * Above MDA indicator
+.         gen post=(agemo_mda>=0)
+  9.         
+.         * Construct weights for triangular kernel with bandwidth of 13
+.         local bw = `bandwidth'
+ 10.         gen tri_wgt = 0
+ 11.         qui forval x = 0/`=`bw'-1' {
+ 12.                 replace tri_wgt=(`bw'-`x')/`bw' if agemo_mda==`x'
+ 13.         }
+ 14.         qui forval x = 2/`bw' {
+ 15.                 replace tri_wgt=(`bw'-`x'+1)/`bw' if agemo_mda==-(`x'-1)
+ 16.         }
+ 17.         
+.         * Indicator for first month of driving eligibility
+.         gen firstmonth=(agemo_mda==0)
+ 18. end
+
+. 
+end of do-file
+
+. 
+. *****
+. ** Heterogeneity regressions (including the main regression)
+. *****
+. 
+. local replace replace   
+
+. local run_male_female = 0
+
+. qui foreach scenario in "All" "Male" "Female" {
+
+. 
+. * Output regression results
+. use "`results'", clear
+
+. save "results/intermediate/addhealth_rd.dta", replace
+file results/intermediate/addhealth_rd.dta saved
+
+. 
+. * Output figure for driver's license and vehicle miles driven (male/female on
+>  same plot)
+. use "`male_female'", clear
+
+. 
+. * Driver's license
+. graph twoway (scatter DriverLicense_Male agemo_mda, `mformat') (line DriverLi
+> cense_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line DriverLicense_h
+> at_Male agemo_mda if agemo_mda > 0, `lformat')  ///
+>                                 (scatter DriverLicense_Female agemo_mda, `mfo
+> rmat2') (line DriverLicense_hat_Female agemo_mda if agemo_mda <= -1, `lformat
+> 2') (line DriverLicense_hat_Female agemo_mda if agemo_mda > 0, `lformat2') //
+> /        
+>                         , xtitle("Age (in months) since MDA", `xtitlesize') y
+> title("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsize') gra
+> phregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Females" 5 ""
+> ) `legendsize')
+
+. graph export "results/figures/rd_license_male_female.pdf", as(pdf) replace
+file results/figures/rd_license_male_female.pdf saved as PDF format
+
+. 
+. * Vehicle miles driven
+. format *Male %12.0fc
+
+. graph twoway (scatter VehicleMiles_150_Male agemo_mda, `mformat') (line Vehic
+> leMiles_150_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line VehicleMi
+> les_150_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
+>                                 (scatter VehicleMiles_150_Female agemo_mda, `
+> mformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda <= -1, `l
+> format2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda > 0, `lfor
+> mat2') ///       
+>                         , xtitle("Age (in months) since MDA", `xtitlesize') y
+> title("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(0(500)2500, `ylab
+> size') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Fem
+> ales" 5 "") `legendsize')
+
+. graph export "results/figures/rd_vmd150_male_female.pdf", as(pdf) replace    
+>            
+file results/figures/rd_vmd150_male_female.pdf saved as PDF format
+
+. 
+. ** EOF
+. 
+end of do-file

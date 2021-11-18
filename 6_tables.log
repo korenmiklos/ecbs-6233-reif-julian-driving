@@ -21,7 +21,7 @@ Notes:
       3. More than 2 billion observations are allowed; see help obs_advice.
       4. Maximum number of variables is set to 5,000; see help set_maxvar.
 
-. do scripts/6_tables.do 
+. do scripts/analysis/6_tables.do 
 
 . ************
 . * SCRIPT: 6_tables.do
@@ -689,7 +689,7 @@ ci_upper was forced to string; some loss of information
 (12 real changes made)
 
 . save "`table'", replace
-file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03185.000002 saved
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03813.000002 saved
     as .dta format
 
 . 
@@ -715,7 +715,7 @@ file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03185.000002 saved
     -----------------------------------------
 
 . save "`table'", replace
-file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03185.000002 saved
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03813.000002 saved
     as .dta format
 
 . 
