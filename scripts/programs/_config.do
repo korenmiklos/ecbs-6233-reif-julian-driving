@@ -9,11 +9,10 @@ while `"`1'"' != "" {
   if `"`1'"'!="BASE" cap adopath - `"`1'"'
   macro shift
 }
-adopath ++ "$Driving/scripts/libraries/stata"
+adopath ++ "scripts/libraries/stata"
 
 mata: mata mlib index
 
 * Additional code you want automatically executed
-assert !mi("$Driving")
 set varabbrev off
 

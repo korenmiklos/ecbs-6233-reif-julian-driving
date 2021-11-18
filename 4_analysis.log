@@ -1,0 +1,511 @@
+
+  ___  ____  ____  ____  ____ ©
+ /__    /   ____/   /   ____/      17.0
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2021 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-STATA-PC        https://www.stata.com
+                                   979-696-4600        stata@stata.com
+
+Stata license: Single-user 2-core  perpetual
+Serial number: 501706328764
+  Licensed to: Miklos Koren
+               CEU MicroData
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000; see help set_maxvar.
+
+. do scripts/4_analysis.do 
+
+. ************
+. * SCRIPT: 4_analysis.do
+. * PURPOSE: Estimate RD regressions
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "scripts/libraries/stata"
+  [1]              "scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile results male_female
+
+. local regsave_settings "tstat pval ci cmdline"
+
+. 
+. * Set the flag equal to 1 to run that analysis, and equal to 0 otherwise
+. * Note: mortality analysis cannot be run without first obtaining access to th
+> e confidential vital statistics data
+. * Also requires access to the confidential data for Add Health
+. local rd_addhealth 1
+
+. local rd_mortality 1
+
+. local rd_mortality_yearbins 1
+
+. local rd_mortality_suicide_acct 1
+
+. local rd_mortality_robustness 1
+
+. local rd_mortality_placebo 1
+
+. local adjustedp 1
+
+. 
+. ***
+. * Formatting settings for graphs
+. ***
+. * Titles and label formatting
+. local xtitlesize "size(medlarge)"
+
+. local ytitlesize "size(medlarge)"
+
+. local xlabsize "labsize(medium)"
+
+. local ylabsize "labsize(medium)"
+
+.         
+. * Marker and line fit formatting
+. local mformat "msym(oh) mcol(red) msize(medlarge)"
+
+. local mformat2 "msym(sh) mcol(blue) msize(medlarge)"
+
+. local mformat3 "msym(x) mcol(green) msize(medlarge)"
+
+. local lformat "clcolor(black) lwidth(medthick)"
+
+. local lformat2 "clcolor(black) lwidth(medthick) lpattern(dash)"
+
+. local legendsize "size(medlarge)"
+
+. 
+. ***
+. * Standardized preperation code for the RD regressions
+. ***
+. cap program drop prep_data_rd
+
+. program define prep_data_rd
+  1. 
+.         syntax , bandwidth(integer)
+  2.         
+.         isid agemo_mda
+  3.         
+.         * Death rates per 100,000 person-years (divide population by 12 age-m
+> onths)
+.         * Account for the fact that there are 12 ages in months in a single c
+> alendar month (e.g. 16y0m, 16y1m,.., 16y11m in January 1998) 
+.         * Note: all death rate vars begin with "cod"
+.         cap unab death_rate_vars : cod*
+  4.         qui foreach  y of local death_rate_vars {
+  5.                 replace `y'=100000*`y'/(pop/12)
+  6.                 label var `y' "Deaths per 100,000"
+  7.         }       
+  8.         
+.         * Above MDA indicator
+.         gen post=(agemo_mda>=0)
+  9.         
+.         * Construct weights for triangular kernel with bandwidth of 13
+.         local bw = `bandwidth'
+ 10.         gen tri_wgt = 0
+ 11.         qui forval x = 0/`=`bw'-1' {
+ 12.                 replace tri_wgt=(`bw'-`x')/`bw' if agemo_mda==`x'
+ 13.         }
+ 14.         qui forval x = 2/`bw' {
+ 15.                 replace tri_wgt=(`bw'-`x'+1)/`bw' if agemo_mda==-(`x'-1)
+ 16.         }
+ 17.         
+.         * Indicator for first month of driving eligibility
+.         gen firstmonth=(agemo_mda==0)
+ 18. end
+
+. 
+. *****************************************
+. * RD estimates for Add Health outcomes 
+. *****************************************
+. if `rd_addhealth'==1 {
+. 
+.         *****
+.         ** Heterogeneity regressions (including the main regression)
+.         *****
+. 
+.         local replace replace   
+.         local run_male_female = 0
+.         qui foreach scenario in "All" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "results/intermediate/addhealth_rd.dta", replace
+file results/intermediate/addhealth_rd.dta saved
+.         
+.         * Output figure for driver's license and vehicle miles driven (male/f
+> emale on same plot)
+.         use "`male_female'", clear
+.         
+.         * Driver's license
+.         graph twoway (scatter DriverLicense_Male agemo_mda, `mformat') (line 
+> DriverLicense_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line DriverL
+> icense_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter DriverLicense_Female agemo_mda, `mf
+> ormat2') (line DriverLicense_hat_Female agemo_mda if agemo_mda <= -1, `lforma
+> t2') (line DriverLicense_hat_Female agemo_mda if agemo_mda > 0, `lformat2') /
+> //       
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsi
+> ze') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Femal
+> es" 5 "") `legendsize')
+.         graph export "results/figures/rd_license_male_female.pdf", as(pdf) re
+> place
+file results/figures/rd_license_male_female.pdf saved as PDF format
+. 
+.         * Vehicle miles driven
+.         format *Male %12.0fc
+.         graph twoway (scatter VehicleMiles_150_Male agemo_mda, `mformat') (li
+> ne VehicleMiles_150_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line V
+> ehicleMiles_150_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter VehicleMiles_150_Female agemo_mda, 
+> `mformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda <= -1, `
+> lformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda > 0, `lfo
+> rmat2') ///      
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(0(500)250
+> 0, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "
+> " 4 "Females" 5 "") `legendsize')
+.         graph export "results/figures/rd_vmd150_male_female.pdf", as(pdf) rep
+> lace               
+file results/figures/rd_vmd150_male_female.pdf saved as PDF format
+. }
+
+. 
+. ********************************
+. * Main RD mortality estimates
+. ********************************
+. if `rd_mortality'==1 {
+.         
+.         *****
+.         ** Heterogeneity regressions (including the main regression)
+.         *****
+.         
+.         local replace replace
+.         local run_male_female = 0
+.         qui foreach scenario in "All" "mda192" "mda_not192" "mda192_Female" "
+> mda_not192_Female" "mda192_Male" "mda_not192_Male" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "results/intermediate/mortality_rd.dta", replace
+file results/intermediate/mortality_rd.dta saved
+.         
+.         * Output main figure for all causes and MVA (male/female on same plot
+> )
+.         use "`male_female'", clear
+.         
+.         * All causes
+.         graph twoway (scatter cod_any_Male agemo_mda, `mformat') (line cod_an
+> y_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line cod_any_hat_Male ag
+> emo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter cod_any_Female agemo_mda, `mformat2
+> ') (line cod_any_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line c
+> od_any_hat_Female agemo_mda if agemo_mda > 0, `lformat2') ///
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize'
+> ) ylabel(20(15)80, `ylabsize') graphregion(fcolor(white)) legend(cols(4) orde
+> r(1 "Males" 2 "" 4 "Females" 5 "") `legendsize')
+.         graph export "results/figures/rd_any_male_female.pdf", as(pdf) replac
+> e
+file results/figures/rd_any_male_female.pdf saved as PDF format
+.         
+.         * MVA
+.         graph twoway (scatter cod_MVA_Male agemo_mda, `mformat') (line cod_MV
+> A_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line cod_MVA_hat_Male ag
+> emo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter cod_MVA_Female agemo_mda, `mformat2
+> ') (line cod_MVA_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line c
+> od_MVA_hat_Female agemo_mda if agemo_mda > 0, `lformat2') /// 
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize'
+> ) ylabel(, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Ma
+> les" 2 "" 4 "Females" 5 "") `legendsize')
+.         graph export "results/figures/rd_mva_male_female.pdf", as(pdf) replac
+> e  
+file results/figures/rd_mva_male_female.pdf saved as PDF format
+. }
+
+. 
+. ***************************************************************
+. * RD mortality over time estimates, separately by male/female
+. ***************************************************************
+. 
+. if `rd_mortality_yearbins'==1 {
+.         
+.         * Number of years in the bin
+.         local num_yrs = 4
+.         
+.         local replace replace
+.         qui forval yr = 1983(`num_yrs')2013 {
+. 
+.         * Figures - for MVA and poisoning by sex
+.         foreach y in cod_MVA cod_sa_poisoning {
+  2.         foreach scen in Male Female {
+  3.     
+.                 * RD mortality over time estimates
+.                 use "`results'", clear
+  4.         
+.                 keep if y=="`y'"
+  5.                 keep if scenario=="`scen'"
+  6.                 keep if var=="Robust"
+  7.                 replace coef = b_conv if var=="Robust"
+  8.         
+.                 if "`scen'" == "Male" local color "red"
+  9.                 if "`scen'" == "Female" local color "blue"
+ 10.                 
+.                 local filename "`=lower("`y'_`scen'")'"
+ 11.                 
+.                 * Output figure
+.                 graph twoway (connected coef years,  clcolor(`color') clpatte
+> rn(solid) lwidth(thick) msym(circle) mcol(`color') msize(large)) ///
+>                                          (line ci_lower years,  clcolor(`colo
+> r') clpattern(dash) lwidth(medium) ) ///
+>                                          (line ci_upper years,  clcolor(`colo
+> r') clpattern(dash) lwidth(medium) ) ///
+>                                          , xtitle("Year", `xtitlesize') ytitl
+> e("Deaths per 100,000", `ytitlesize') xlabel(1983(4)2013, `xlabsize') ylabel(
+> , `ylabsize') graphregion(fcolor(white)) legend(order(1 "`scen' estimate" 2 "
+> 95% confidence interval") `legendsize') yline(0)
+ 12.                 graph export "results/figures/yearbins_`filename'.pdf", as
+> (pdf) replace
+ 13.         }
+ 14.         }
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file results/figures/yearbins_cod_mva_male.pdf saved as PDF format
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file results/figures/yearbins_cod_mva_female.pdf saved as PDF format
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file results/figures/yearbins_cod_sa_poisoning_male.pdf saved as PDF format
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file results/figures/yearbins_cod_sa_poisoning_female.pdf saved as PDF format
+.         
+. }
+
+. 
+. *******************************************************
+. * RD estimates separately for suicides and accidents
+. *******************************************************
+. if `rd_mortality_suicide_acct'==1 {
+.         
+.         local replace replace
+.         qui foreach scenario in "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "results/intermediate/mortality_rd_suicide_acct.dta", replace
+file results/intermediate/mortality_rd_suicide_acct.dta saved
+. }
+
+. 
+. ************************************************************
+. * Robustness checks (different polynomials and bandwidths)
+. ************************************************************
+. if `rd_mortality_robustness'==1 {
+.         
+.         local replace replace
+.         qui foreach scenario in "All" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "results/intermediate/mortality_rd_robustness.dta", replace
+file results/intermediate/mortality_rd_robustness.dta saved
+. }
+
+. 
+. ***********************
+. * Placebo analysis
+. ***********************
+. if `rd_mortality_placebo'==1 {
+.         
+.         local replace replace
+.         qui foreach scenario in "All" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "results/intermediate/mortality_rd_placebo.dta", replace
+file results/intermediate/mortality_rd_placebo.dta saved
+.         
+. }
+
+. 
+. *********************************
+. * Multiple hypothesis testing   
+. *********************************
+. if `adjustedp' {
+.         
+.         * Multiple hypothesis code comes from wyoung.ado (Jones, Molitor, and
+>  Reif 2019)
+.         program drop _all
+.         program define calc_adjustedp
+  1. 
+.                 ren pval p
+  2. 
+.                 * Include k in the sort to break ties
+.                 gen k = _n
+  3.                 sort group p k
+  4. 
+.                 tempname j
+  5.                 by group: gen `j' = _N-_n+1
+  6.                         
+.                 by group: gen double pbonf = min(p*`j',1) if _n==1
+  7.                 by group: replace    pbonf = min(max(p*`j',pbonf[_n-1]),1)
+>  if _n>1
+  8. 
+.                 by group: gen double psidak = min((1-(1-p)^(`j')),1) if _n==1
+  9.                 by group: replace    psidak = min(max((1-(1-p)^(`j')),psid
+> ak[_n-1]),1) if _n>1
+ 10.                 
+.                 by group: gen num_H0 = _N
+ 11.                 
+.                 label var coef "Coefficient"
+ 12.                 label var y "Outcome variable"
+ 13.                 label var p "Unadjusted"
+ 14.                 label var pbonf "Bonferroni-Holm"
+ 15.                 label var psidak "Sidak-Holm"   
+ 16.                 label var num_H0 "Number of hypotheses"
+ 17.         end     
+.         
+.         ***
+.         * Mortality outcomes
+.         ***
+.         use "results/intermediate/mortality_rd.dta", clear
+.         isid var y scenario
+.         keep if inlist(scenario,"All","Male","Female")
+(108 observations deleted)
+. 
+.         * For rdrobust, we will use the point estimate from "conventional" es
+> timate and inference from "robust" bias-correction
+.         keep if inlist(var,"Robust","1.post")
+(273 observations deleted)
+.         replace coef = b_conv if var=="Robust"
+(39 real changes made)
+. 
+.         * Keep relevant variables in family. Family defined as RD spec (robus
+> t/OLS) X subgroup(all or male/female)
+.         drop if strpos(y,"_acct") | strpos(y,"_suicide")
+(0 observations deleted)
+.         gen group     = 10 if var=="Robust"
+(39 missing values generated)
+.         replace group = 20 if var=="1.post"
+(39 real changes made)
+.         replace group = group+1 if scenario=="All"
+(26 real changes made)
+.         
+.         calc_adjustedp
+(74 missing values generated)
+(74 real changes made)
+(74 missing values generated)
+(74 real changes made)
+.         keep rdspec var y scenario num_H0 pbonf psidak
+.         tempfile adjustedp
+.         save "`adjustedp'", replace
+(file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03163.00000e not
+    found)
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03163.00000e saved
+    as .dta format
+. 
+.         ***
+.         * Add health outcomes
+.         ***
+.         use "results/intermediate/addhealth_rd.dta", clear
+.         keep if inlist(scenario,"All","Male","Female")
+(0 observations deleted)
+.         isid var y scenario
+. 
+.         * For rdrobust, we will use the point estimate from "conventional" es
+> timate and inference from "robust" bias-correction
+.         keep if inlist(var,"Robust","1.post")
+(63 observations deleted)
+.         replace coef = b_conv if var=="Robust"
+(11 real changes made)
+.         
+.         * Adjust done for RD spec (robust/OLS), and subgroup (full or M/F)
+.         drop if inlist(y,"Work4weeks","DriverLicense","VehicleMiles_150","Veh
+> icleMiles_265")
+(19 observations deleted)
+.         gen group     = 100 if var=="Robust"
+.         replace group = 200 if var=="1.post"
+(0 real changes made)
+.         replace group = group + 10 if scenario=="All"
+(1 real change made)
+.         
+.         * Output adjusted p-values
+.         calc_adjustedp
+(0 real changes made)
+(0 real changes made)
+.         keep rdspec var y scenario num_H0 pbonf psidak
+.         append using "`adjustedp'"
+(variable y was str16, now str22 to accommodate using data's values)
+(variable scenario was str6, now str17 to accommodate using data's values)
+.         save "results/intermediate/adjustedp.dta", replace
+file results/intermediate/adjustedp.dta saved
+. }
+
+. 
+. 
+. ** EOF
+. 
+end of do-file

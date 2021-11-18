@@ -4,7 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -35,7 +35,7 @@ local legendsize2 "size(small)"
 * Population size
 ***
 
-use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear
+use "data/seer/derived/seer_pop1983_2014st.dta", clear
 keep if age==16
 
 collapse (sum) pop, by(year) fast
@@ -49,7 +49,7 @@ assert abs(r(mean)-3931562)<1
 ***
 
 * "A multiple testing correction would need to adjust for many thousands of hypotheses to increase the unadjusted p-value (p<0.00001) above the conventional significance level of 0.05."
-use "$Driving/results/intermediate/mortality_rd.dta", clear
+use "results/intermediate/mortality_rd.dta", clear
 keep if y=="cod_sa_poisoning"
 keep if scenario=="Female"
 
@@ -60,7 +60,7 @@ assert pval < 0.00001 if rdspec=="rdrobust"
 ***
 
 * "The MSE-optimal RD estimate from equation (1) is an increase in working for pay of 2.9 percentage points (p=0.411), with a 95% robust bias-corrected confidence interval of [-0.0385, 0.0942]."
-use "$Driving/results/intermediate/addhealth_rd.dta", clear
+use "results/intermediate/addhealth_rd.dta", clear
 keep if y=="Work4weeks" & rdspec=="rdrobust" & scenario=="All"
 replace coef = b_conv if var=="Robust"
 assert _N==1
@@ -74,7 +74,7 @@ assert abs(ci_upper-.0941577)<0.0000001
 ***
 
 * "The MSE-optimal estimate for not enrolled in school is -0.021 percentage points (p=0.829), with a 95% robust bias-corrected confidence interval of [-0.0104, 0.0083]."
-use "$Driving/results/intermediate/addhealth_rd.dta", clear
+use "results/intermediate/addhealth_rd.dta", clear
 keep if y=="NotEnrolled" & rdspec=="rdrobust" & scenario=="All"
 replace coef = b_conv if var=="Robust"
 assert _N==1
@@ -88,7 +88,7 @@ assert abs(ci_upper-.0083)<0.0000001
 *****************************************************
 
 * Main data for analysis
-use "$Driving/data/mortality/derived/sex_agegroup_8314.dta", clear
+use "data/mortality/derived/sex_agegroup_8314.dta", clear
 
 * Restrict to ages 15-19 (i.e., group 2)
 keep if agegroup==2
@@ -126,13 +126,13 @@ graph twoway (line All_male year,  clcolor(blue) clpattern(solid) `lformat' msym
 			 (line MVA_male year,  clcolor(red) clpattern(dash) `lformat' msym(sh) mcol(red) `mformat') ///
 			 (line SA_male year, clcolor(green) clpattern(dot) `lformat2' msym(X) mcol(green) `mformat' yaxis(2)) ///
 			 , xtitle("Year", `xtitlesize') xlabel(1983 1985 1990 1995 2000 2005 2010 2014, `xlabsize' angle(vertical)) ytitle("Deaths per 100,000", `ytitlesize') ylabel(0(20)140, `ylabsize' gmax gmin) ytitle("Deaths per 100,000", `ytitlesize' axis(2)) ylabel(0(6)36, `ylabsize' axis(2)) graphregion(fcolor(white)) legend(order(1 "All causes" 2 "Motor vehicle accident" 3 "Suicide and accident (right axis)") `legendsize2') 
-graph export "$Driving/results/figures/appendix_mort_trends_male.pdf", as(pdf) replace	
+graph export "results/figures/appendix_mort_trends_male.pdf", as(pdf) replace	
 
 graph twoway (line All_female  year, clcolor(blue) clpattern(solid) `lformat' msym(oh) mcol(blue) `mformat') /// 
 			 (line MVA_female  year, clcolor(red) clpattern(dash) `lformat' msym(sh) mcol(red) `mformat') ///
 			 (line SA_female year, clcolor(green) clpattern(dot) `lformat2' msym(X) mcol(green) `mformat' yaxis(2)) ///
 			 , xtitle("Year", `xtitlesize') xlabel(1983 1985 1990 1995 2000 2005 2010 2014, `xlabsize' angle(vertical)) ytitle("Deaths per 100,000", `ytitlesize') ylabel(0(20)60, `ylabsize' gmax gmin) ytitle("Deaths per 100,000", `ytitlesize' axis(2)) ylabel(0(2)8, `ylabsize' axis(2)) graphregion(fcolor(white)) legend(order(1 "All causes" 2 "Motor vehicle accident" 3 "Suicide and accident (right axis)") `legendsize2') 
-graph export "$Driving/results/figures/appendix_mort_trends_female.pdf", as(pdf) replace
+graph export "results/figures/appendix_mort_trends_female.pdf", as(pdf) replace
 
 * Poisoning, firearms, drowning, other
 foreach y in poisoning firearm drowning other {
@@ -140,7 +140,7 @@ foreach y in poisoning firearm drowning other {
 	graph twoway (line `y'_male year, clcolor(red) clpattern(dash) `lformat' msym(sh) mcol(red) `mformat') ///
 				 (line `y'_female year, clcolor(blue) clpattern(solid) `lformat' msym(oh) mcol(blue) `mformat') ///
 				 , xtitle("Year", `xtitlesize') xlabel(1983 1985 1990 1995 2000 2005 2010 2014, `xlabsize' angle(vertical)) ytitle("Deaths per 100,000", `ytitlesize') graphregion(fcolor(white)) ylabel(, `ylabsize' gmax gmin) legend(order(1 "Males" 2 "Females") `legendsize') 
-	graph export "$Driving/results/figures/appendix_mort_trends_`y'.pdf", as(pdf) replace
+	graph export "results/figures/appendix_mort_trends_`y'.pdf", as(pdf) replace
 
 }
 
@@ -149,7 +149,7 @@ foreach y in poisoning firearm drowning other {
 ********************************************************************
 
 * FHWA licensed drivers data
-use "$Driving/processed/fhwa_8314.dta", clear
+use "processed/fhwa_8314.dta", clear
 	
 * Calculate age-specific licensing rates
 gen age16_yr=total_16/pop_16*1000
@@ -163,7 +163,7 @@ graph twoway (line age16_yr year,  clcolor(green) clpattern(solid) `lformat' msy
 			 (line age18_yr year,  clcolor(orange) clpattern(dot) `lformat2' msym(th) mcol(orange) `mformat') ///
 			 (line age19_yr year,  clcolor(purple) clpattern(dash_dot) `lformat' msym(dh) mcol(purple) `mformat') ///
 			 , xtitle("Year", `xtitlesize') ylabel(0(.2).9, `ylabsize') xlabel(1983 1985 1990 1995 2000 2005 2010 2014, `xlabsize' angle(vertical))  graphregion(fcolor(white)) legend(order(1 "Age 16" 2 "Age 17" 3 "Age 18" 4 "Age 19") `legendsize') 
-graph export "$Driving/results/figures/appendix_license_trends_ages1619.pdf", as(pdf) replace
+graph export "results/figures/appendix_license_trends_ages1619.pdf", as(pdf) replace
 
 *******************************************
 ****** Driving fatality statistics (FARS) *
@@ -171,7 +171,7 @@ graph export "$Driving/results/figures/appendix_license_trends_ages1619.pdf", as
 if `fars'==1 {
 
 * FARS data
-use "$Driving/processed/fars_8314.dta", clear
+use "processed/fars_8314.dta", clear
 
 * Determine first year of driving eligibility
 gen mda_age = floor(mda_months/12)
@@ -228,7 +228,7 @@ qui foreach scenario in "All" "Male" "Female" {
 	foreach cod in "cod_MVA" "cod_sa_poisoning" {
 		
 		* Placebo RD estimates
-		use "$Driving/results/intermediate/mortality_rd_placebo.dta", clear
+		use "results/intermediate/mortality_rd_placebo.dta", clear
 			
 		* Subset the data down according to the heterogeneity specification of interest
 		keep if scenario=="`scenario'"
@@ -239,13 +239,13 @@ qui foreach scenario in "All" "Male" "Female" {
 			summ tstat if y=="`cod'" & placebo_cutoff==0
 			local rd_actual_`cod' = r(mean)				
 			hist tstat if y=="`cod'", freq xline(`rd_actual_`cod'', lp(dash) lc(blue)) width(.2) xtitle("t-statistic") graphregion(fcolor(white)) fcolor(red) fintensity(inten70) lcolor(black)
-			graph export "$Driving/results/figures/placebo_`filename'.pdf", as(pdf) replace
+			graph export "results/figures/placebo_`filename'.pdf", as(pdf) replace
 		}	
 		if "`cod'"=="cod_sa_poisoning" {
 			summ tstat if y=="`cod'" & placebo_cutoff==0
 			local rd_actual_`cod' = r(mean)				
 			hist tstat if y=="`cod'", freq xline(`rd_actual_`cod'', lp(dash) lc(blue)) width(.2) xtitle("t-statistic") graphregion(fcolor(white)) fcolor(red) fintensity(inten70) lcolor(black)
-			graph export "$Driving/results/figures/placebo_`filename'.pdf", as(pdf) replace	
+			graph export "results/figures/placebo_`filename'.pdf", as(pdf) replace	
 		}
 	}
 }
@@ -255,7 +255,7 @@ qui foreach scenario in "All" "Male" "Female" {
 ********************************************
 
 * Compulsory attendance ages
-import excel "$Driving/data/schoolage/schoolage_laws_1994_2014.xls", firstrow clear
+import excel "data/schoolage/schoolage_laws_1994_2014.xls", firstrow clear
 
 reshape long yr, i(staters) j(year)  
 ren yr comp_age
@@ -269,7 +269,7 @@ replace min_age=min_age*12
 label var min_age "Minimum school leaving age (months)"
 
 * Add MDA law data
-merge 1:m staters year using "$Driving/processed/intermediate/mdalaws_monthly8314.dta", assert(using match) nogenerate keep(match)
+merge 1:m staters year using "processed/intermediate/mdalaws_monthly8314.dta", assert(using match) nogenerate keep(match)
 
 * Identify exact matches
 assert !mi(mda_months )
@@ -288,7 +288,7 @@ assert mda_months==192 if match==1
 *************************************************
 
 * Data on vehicle miles traveled per licensed driver
-import excel "$Driving/data/nhts/nhts_1983_2017.xlsx", firstrow clear
+import excel "data/nhts/nhts_1983_2017.xlsx", firstrow clear
 format *1619 %12.0fc
 
 * Output figure for ages 16-19
@@ -296,7 +296,7 @@ graph twoway (connected both_1619 year, clcolor(green) clpattern(dot) `lformat' 
 			 (connected male_1619 year,  clcolor(red) clpattern(dash) `lformat' msym(O) mcol(red) `mformat2') ///
 		     (connected female_1619 year,  clcolor(blue) clpattern(solid) lwidth(thick) msym(O) mcol(blue) `mformat2') /// 
 			 , xtitle("Year", `xtitlesize') xlabel(1983 1990 1995 2001 2009 2017, `xlabsize' angle(vertical)) ytitle("VMT per licensed driver", `ytitlesize') ylabel(0(2000)10000, `ylabsize' gmax gmin) graphregion(fcolor(white)) legend(order(1 "All" 2 "Male" 3 "Female") `legendsize') 
-graph export "$Driving/results/figures/appendix_vmt_trends_ages1619.pdf", as(pdf) replace	
+graph export "results/figures/appendix_vmt_trends_ages1619.pdf", as(pdf) replace	
 	
 	
 ** EOF

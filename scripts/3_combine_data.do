@@ -4,7 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -28,7 +28,7 @@ if `mortality_state'==1 {
 ***
 ** Prep the SEER data and the mortality data by limiting to ages of interest
 ***
-use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear	
+use "data/seer/derived/seer_pop1983_2014st.dta", clear	
 
 * Keep relevant ages: 10-21 years
 keep if inrange(age,10,21)
@@ -36,7 +36,7 @@ assert !mi(pop)
 
 save "`seer_data'", replace
 
-use "$Driving/processed/intermediate/cdc_mortality_data83to14st.dta", clear
+use "processed/intermediate/cdc_mortality_data83to14st.dta", clear
 
 * Keep relevant ages: 10-21 years
 keep if inrange(agemo,10*12,22*12-1)
@@ -98,7 +98,7 @@ drop if _merge==1 & cod_any==0
 drop _merge
 
 * Merge on the MDA law data
-merge m:1 staters year monthdth using "$Driving/processed/intermediate/mdalaws_monthly8314.dta", assert(match) nogenerate
+merge m:1 staters year monthdth using "processed/intermediate/mdalaws_monthly8314.dta", assert(match) nogenerate
 
 * The dataset is at the year-month level, but SEER data are annual -> Divide the population by 12
 replace pop=pop/12
@@ -132,13 +132,13 @@ preserve
 	
 	collapse (sum) cod* pop, by(year-mo_brth mda_months) fast
 	compress
-	save "$Driving/processed/mortality_mda_combined8314st.dta", replace
+	save "processed/mortality_mda_combined8314st.dta", replace
 restore, preserve
 
 	* National-level file (small) - main one used in analysis
 	collapse (sum) cod* pop, by(agemo_mda male) fast
 	compress
-	save "$Driving/processed/mortality_mda_combined8314nt.dta", replace
+	save "processed/mortality_mda_combined8314nt.dta", replace
 }
 
 ****************************************
@@ -147,9 +147,9 @@ restore, preserve
 if `fars'==1 {
 
 * Combine FARS person data with MDA law data
-use "$Driving/processed/intermediate/fars_raw_data8314_person.dta", clear
+use "processed/intermediate/fars_raw_data8314_person.dta", clear
 ren month monthdth
-merge m:1 staters year monthdth using "$Driving/processed/intermediate/mdalaws_monthly8314.dta", assert(match using) keep(match) nogenerate
+merge m:1 staters year monthdth using "processed/intermediate/mdalaws_monthly8314.dta", assert(match using) keep(match) nogenerate
 drop monthdth
 
 * Label variables
@@ -160,7 +160,7 @@ label var per_typ "Person type"
 label var inj_sev "Injury severity"
 
 * Save the data
-save "$Driving/processed/fars_8314.dta", replace
+save "processed/fars_8314.dta", replace
 }
 
 ****************************************
@@ -169,7 +169,7 @@ save "$Driving/processed/fars_8314.dta", replace
 if `fhwa'==1 {
 
 * SEER population
-use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear
+use "data/seer/derived/seer_pop1983_2014st.dta", clear
 keep if inrange(age, 16, 19)
 	
 * Create population variable for each age group
@@ -188,7 +188,7 @@ collapse (sum) `vars', by(year) fast
 keep year pop_16 pop_17 pop_18 pop_19
 
 * Merge FHWA data
-merge 1:1 year using "$Driving/processed/intermediate/licensed_drivers_1983to2014.dta"
+merge 1:1 year using "processed/intermediate/licensed_drivers_1983to2014.dta"
 keep if _merge==3
 drop _merge
 
@@ -199,7 +199,7 @@ label var pop_18 "Population aged 18"
 label var pop_19 "Population aged 19"
 	
 * Save the data
-save "$Driving/processed/fhwa_8314.dta", replace
+save "processed/fhwa_8314.dta", replace
 
 }
 

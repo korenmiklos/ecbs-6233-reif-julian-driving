@@ -4,8 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-global Driving .
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -27,9 +26,9 @@ local fn_col3_mse "Column (3) reports MSE-optimal estimates and reports robust, 
 
 
 * Data tables for Add Health, MDA laws, and ICD codes were created manually
-copy "$Driving/data/add_health/appendix_data_addhealth.tex" "$Driving/results/tables/appendix_data_addhealth.tex", replace
-copy "$Driving/data/mda/appendix_data_mda.tex" "$Driving/results/tables/appendix_data_mda.tex", replace
-copy "$Driving/data/icd_codes/appendix_data_icd_codes.tex" "$Driving/results/tables/appendix_data_icd_codes.tex", replace
+copy "data/add_health/appendix_data_addhealth.tex" "results/tables/appendix_data_addhealth.tex", replace
+copy "data/mda/appendix_data_mda.tex" "results/tables/appendix_data_mda.tex", replace
+copy "data/icd_codes/appendix_data_icd_codes.tex" "results/tables/appendix_data_icd_codes.tex", replace
 
 
 * Standardized cleaning of variable names
@@ -166,7 +165,7 @@ local run_male_female = 0
 qui foreach scenario in "Female" "Male" "All" {
 
 * Main data extended to ages 10-29
-use "$Driving/data/mortality/derived/sex_agegroup_8314.dta", clear
+use "data/mortality/derived/sex_agegroup_8314.dta", clear
 
 * Subset the data down by gender	
 if "`scenario'"=="Male"           keep if male==1
@@ -229,17 +228,17 @@ ingap 14 28, after
 local title "Annual US deaths per 100,000 population, 1983--2014"
 local fn "Notes: Death counts come from the National Vital Statistics. Population estimates come from the Surveillance, Epidemiology, and End Results (SEER) Program."
 
-texsave using "$Driving/results/tables/appendix_data_mortality.tex", varlabels marker("tab:appendix_data_mortality")  size(small) bold("A. " "B. " "C. ") title("`title'") hlines(1 16 31) footnote("`fn'") `texsave_settings'
+texsave using "results/tables/appendix_data_mortality.tex", varlabels marker("tab:appendix_data_mortality")  size(small) bold("A. " "B. " "C. ") title("`title'") hlines(1 16 31) footnote("`fn'") `texsave_settings'
 
 *******************************************************************
 *  Effect of driving eligibility on teenage driving and mortality
 *******************************************************************
 
 * Main mortality RD estimates
-use "$Driving/results/intermediate/mortality_rd.dta", clear
+use "results/intermediate/mortality_rd.dta", clear
 
 * Add Health RD estimates
-append using "$Driving/results/intermediate/addhealth_rd.dta"
+append using "results/intermediate/addhealth_rd.dta"
 
 * For rdrobust, we will use the point estimate from "conventional" estimate and inference from "robust" bias-correction
 keep if inlist(var,"Robust")
@@ -250,7 +249,7 @@ gtostring ci_lower ci_upper, force replace sigfig(3)
 gen ci = "[" + ci_lower + ", " + ci_upper + "]"
 
 * Adjusted p-values
-merge 1:1 var y rdspec scenario using "$Driving/results/intermediate/adjustedp.dta", nogenerate keep(match master)
+merge 1:1 var y rdspec scenario using "results/intermediate/adjustedp.dta", nogenerate keep(match master)
 
 * Remove "cod_" from the variable y
 replace y = subinstr(y,"cod_","",1)
@@ -354,14 +353,14 @@ local title "Effect of driving eligibility on teenage driving and mortality"
 local headerlines "& \multicolumn{2}{c}{Full sample} & \multicolumn{2}{c}{Male} & \multicolumn{2}{c}{Female}" "\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}"
 local fn "Notes: The driving estimates in Panel A are based on weighted responses to the 1995--1996 Add Health surveys. The mortality estimates in Panel B, which are measured in deaths per 100,000 person-years, are based on death counts from the 1983--2014 National Vital Statistics and population data from the 1983--2014 Surveillance, Epidemiology, and End Results (SEER) Program.  Columns (1), (3), and (5) report means of the dependent variable one year before reaching the minimum driving age (MDA). Columns (2), (4), and (6) report MSE-optimal estimates of \(\beta\) from equation (\ref{E - RD1}). `fn_bracket' `fn_asterisk' `fn_familyp'"
 
-texsave using "$Driving/results/tables/rd_mortality.tex", varlabels marker("tab:rd_mortality") size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(scriptsize)) `texsave_settings'
+texsave using "results/tables/rd_mortality.tex", varlabels marker("tab:rd_mortality") size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(scriptsize)) `texsave_settings'
 
 ******************************************************************
 * Effect of driving eligibility on female suicides and accidents   
 ******************************************************************
 
 * RD estimates for female suicides and accidents
-use "$Driving/results/intermediate/mortality_rd_suicide_acct.dta", clear
+use "results/intermediate/mortality_rd_suicide_acct.dta", clear
 keep if scenario=="Female" & rdspec=="rdrobust"
 drop scenario
 
@@ -453,14 +452,14 @@ local title "Effect of driving eligibility on female suicides and accidents"
 local headerlines "& \multicolumn{2}{c}{Female suicides} & \multicolumn{2}{c}{Female accidents} & \multicolumn{2}{c}{Female suicides and accidents}"  "\cmidrule(lr){2-3} \cmidrule(lr){4-5}  \cmidrule(lr){6-7}"
 local fn "Notes: This table reports MSE-optimal estimates of \(\beta\) from equation (\ref{E - RD1}). The dependent variable is deaths per 100,000 person-years. Columns (1), (3), and (5) report means of the dependent variable one year before reaching the minimum driving age (MDA). Columns (5)--(6) reproduce the numbers reported in Columns (5)--(6) of Table \ref{tab:rd_mortality}. The estimates in Columns (2) and (4) do not necessarily add up to the estimate in Column (6) because bandwidths are not constant across different regressions. `fn_bracket' `fn_asterisk' Familywise \(p\)-values are not reported in this exploratory analysis."
 local model rdrobust
-texsave var mean_y_suicide `model'_suicide mean_y_acct `model'_acct mean_y_sa `model'_sa using "$Driving/results/tables/rd_mortality_sa_female.tex", varlabels marker("tab:rd_mortality_sa_mse") headerlines("`headerlines'") title("`title'") footnote("`fn'") landscape align(lCcCcCc) size(small) `texsave_settings'
+texsave var mean_y_suicide `model'_suicide mean_y_acct `model'_acct mean_y_sa `model'_sa using "results/tables/rd_mortality_sa_female.tex", varlabels marker("tab:rd_mortality_sa_mse") headerlines("`headerlines'") title("`title'") footnote("`fn'") landscape align(lCcCcCc) size(small) `texsave_settings'
 
 **********************************************************************
 * Effect of driving eligibility on mortality for different subgroups
 **********************************************************************
 
 * Main mortality RD estimates
-use "$Driving/results/intermediate/mortality_rd.dta", clear
+use "results/intermediate/mortality_rd.dta", clear
 
 * For rdrobust, we will use the point estimate from "conventional" estimate and inference from "robust" bias-correction
 keep if inlist(var,"1.post","Robust")
@@ -577,7 +576,7 @@ foreach t in "MVA" "sa_poisoning" {
 	* Heterogeneity by state MDA table
 	local title "Effect of driving eligibility on `outcome' by state minimum driving age"
 	local headerlines "& & \multicolumn{2}{c}{RD estimate}" "\cmidrule(lr){3-4}"
-	texsave var-rdrobust if mdascen==1 using "$Driving/results/tables/rd_subgroup_mda_`name'.tex", varlabels marker("tab:rd_`name'_heterogeneity_mda") headersep(2ex) headerlines("`headerlines'") title("`title'") footnote("`fn'", size(scriptsize)) size(footnotesize) `texsave_settings'	
+	texsave var-rdrobust if mdascen==1 using "results/tables/rd_subgroup_mda_`name'.tex", varlabels marker("tab:rd_`name'_heterogeneity_mda") headersep(2ex) headerlines("`headerlines'") title("`title'") footnote("`fn'", size(scriptsize)) size(footnotesize) `texsave_settings'	
 	
 	restore, preserve
 }
@@ -588,7 +587,7 @@ restore, not
 *********************************************************************************************
 
 * Mortality RD estimates for robustness checks
-use "$Driving/results/intermediate/mortality_rd_robustness.dta", clear
+use "results/intermediate/mortality_rd_robustness.dta", clear
 keep if !mi(bwselection)
 drop order_poly bw bw_bias
 
@@ -704,14 +703,14 @@ local title "Effect of driving eligibility on mortality using different bandwidt
 local headerlines "& & & \multicolumn{2}{c}{RD estimate}" "\cmidrule(lr){3-6}"
 local fn "Notes: The dependent variable is deaths per 100,000 person-years. Column (1) reports means of the dependent variable one year before reaching the minimum driving age (MDA). Columns (2)--(5) report estimates of \(\beta\) from equation (\ref{E - RD1}) using different bandwidths. The MSE-optimal method selects a bandwidth that minimizes the mean squared error (MSE) of the point estimator. The coverage error rate (CER) optimal method selects a bandwidth that minimizes the asymptotic CER of the robust bias-corrected confidence interval.  Column (2) reports estimates from our preferred specification, MSE optimal (1), which selects one common bandwidth on each side of the cutoff. Columns (3)--(5) report estimates using different bandwidth selection procedures: MSE optimal with different bandwidths on each side of the cutoff, CER optimal with one common bandwidth, and CER optimal with different bandwidths on each side of the cutoff. `fn_bracket' The selected bandwidths (rounded to the nearest month) are reported below the confidence interval. `fn_asterisk'"
 
-texsave using "$Driving/results/tables/rd_mortality_altbws.tex", varlabels marker("tab:rd_mortality_altbws") size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") bold("A. " "B. " "C. ") title("`title'") hlines(1 11 21)  footnote("`fn'", size(scriptsize)) `texsave_settings'
+texsave using "results/tables/rd_mortality_altbws.tex", varlabels marker("tab:rd_mortality_altbws") size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") bold("A. " "B. " "C. ") title("`title'") hlines(1 11 21)  footnote("`fn'", size(scriptsize)) `texsave_settings'
 
 ****************************************************************************************
 * Effect of driving eligibility on mortality using different polynomial approximations
 ****************************************************************************************
 
 * Mortality RD estimates for robustness checks
-use "$Driving/results/intermediate/mortality_rd_robustness.dta", clear
+use "results/intermediate/mortality_rd_robustness.dta", clear
 drop if mi(order_poly)
 
 * For rdrobust, we will use the point estimate from "conventional" estimate and inference from "robust" bias-correction
@@ -806,23 +805,23 @@ local title "Effect of driving eligibility on mortality using different polynomi
 local headerlines "& & & \multicolumn{1}{c}{RD estimate}" "\cmidrule(lr){3-5}"
 local fn "Notes: The dependent variable is deaths per 100,000 person-years. Column (1) reports means of the dependent variable one year before reaching the minimum driving age (MDA). Columns (2)--(4) report estimates of \(\beta\) from equation (\ref{E - RD1}) using different polynomial approximations: linear (our preferred specification), quadratic, and cubic. `fn_bracket' `fn_asterisk'"
 
-texsave using "$Driving/results/tables/rd_mortality_polys.tex", varlabels marker("tab:rd_mortality_polys") size(footnotesize) align(lCcCcCc) headerlines("`headerlines'") bold("A. " "B. " "C. ") title("`title'") hlines(1 8 15)  footnote("`fn'", size(scriptsize)) `texsave_settings'
+texsave using "results/tables/rd_mortality_polys.tex", varlabels marker("tab:rd_mortality_polys") size(footnotesize) align(lCcCcCc) headerlines("`headerlines'") bold("A. " "B. " "C. ") title("`title'") hlines(1 8 15)  footnote("`fn'", size(scriptsize)) `texsave_settings'
 
 ***********************************************************************
 * OLS: Effect of driving eligibility on teenage driving and mortality
 ***********************************************************************
 
 * Main mortality RD estimates
-use "$Driving/results/intermediate/mortality_rd.dta", clear
+use "results/intermediate/mortality_rd.dta", clear
 
 * Add Health RD estimates
-append using "$Driving/results/intermediate/addhealth_rd.dta"
+append using "results/intermediate/addhealth_rd.dta"
 replace scenario = "All" if mi(scenario)
 
 keep if inlist(var,"1.post")
 
 * Adjusted p-values
-merge 1:1 var y rdspec scenario using "$Driving/results/intermediate/adjustedp.dta", nogenerate keep(match master)
+merge 1:1 var y rdspec scenario using "results/intermediate/adjustedp.dta", nogenerate keep(match master)
 
 * Remove "cod_" from the variable y
 replace y = subinstr(y,"cod_","",1)
@@ -925,7 +924,7 @@ local title "OLS estimates of effect of driving eligibility on teenage driving a
 local headerlines "& \multicolumn{2}{c}{Full sample} & \multicolumn{2}{c}{Male} & \multicolumn{2}{c}{Female}" "\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}"
 local fn "Notes: This table replicates Table \ref{tab:rd_mortality} but uses an OLS estimator with a bandwidth of 24 months instead of an MSE-optimal estimator. Columns (1), (3), and (5) report means of the dependent variable one year before reaching the minimum driving age (MDA). Columns (2), (4), and (6) report OLS estimates of \(\beta\) from equation (\ref{E - RD1}). Robust standard errors are reported in parentheses.  `fn_asterisk' `fn_familyp'"
 
-texsave using "$Driving/results/tables/rd_mortality_ols.tex", size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") varlabels marker("tab:rd_mortality_ols")  bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(scriptsize)) `texsave_settings'
+texsave using "results/tables/rd_mortality_ols.tex", size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") varlabels marker("tab:rd_mortality_ols")  bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(scriptsize)) `texsave_settings'
 
 
 ** EOF

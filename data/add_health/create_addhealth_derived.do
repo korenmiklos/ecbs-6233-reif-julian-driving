@@ -5,7 +5,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -178,18 +178,18 @@ if `addhealth_raw==1' {
 			
 	* Save the data
 	compress
-	save "$Driving/data/add_health/addhealth_data.dta", replace
+	save "data/add_health/addhealth_data.dta", replace
 }
 
 ***
 * Create derived datasets
 ***
-cap mkdir "$Driving/data/add_health/derived"
+cap mkdir "data/add_health/derived"
 
 qui foreach scenario in "All" "Male" "Female" {
 		
 	* Add Health data
-	use "$Driving/data/add_health/addhealth_data.dta", clear
+	use "data/add_health/addhealth_data.dta", clear
 	
 	* Drop observations with missing data
 	drop if flag==1
@@ -218,7 +218,7 @@ qui foreach scenario in "All" "Male" "Female" {
 	* Save the data
 	compress
 	local output_fn = lower("`scenario'")
-	save "$Driving/data/add_health/derived/`output_fn'.dta", replace
+	save "data/add_health/derived/`output_fn'.dta", replace
 }	
 
 

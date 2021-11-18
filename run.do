@@ -23,10 +23,10 @@ assert !missing("$Driving")
 * Initialize log and record system parameters
 clear
 set more off
-cap mkdir "$Driving/scripts/logs"
+cap mkdir "scripts/logs"
 cap log close
 local datetime : di %tcCCYY.NN.DD!-HH.MM.SS `=clock("$S_DATE $S_TIME", "DMYhms")'
-local logfile "$Driving/scripts/logs/`datetime'.log.txt"
+local logfile "scripts/logs/`datetime'.log.txt"
 log using "`logfile'", text
 
 di "Begin date and time: $S_DATE $S_TIME"
@@ -43,27 +43,27 @@ while `"`1'"' != "" {
   if `"`1'"'!="BASE" cap adopath - `"`1'"'
   macro shift
 }
-adopath ++ "$Driving/scripts/libraries/stata"
+adopath ++ "scripts/libraries/stata"
 mata: mata mlib index
 
 * Stata version control
 version 16
 
 * Create directories for output files
-cap mkdir "$Driving/processed"
-cap mkdir "$Driving/processed/intermediate"
-cap mkdir "$Driving/results"
-cap mkdir "$Driving/results/figures"
-cap mkdir "$Driving/results/intermediate"
-cap mkdir "$Driving/results/tables"
+cap mkdir "processed"
+cap mkdir "processed/intermediate"
+cap mkdir "results"
+cap mkdir "results/figures"
+cap mkdir "results/intermediate"
+cap mkdir "results/tables"
 
 * Run all project scripts
-do "$Driving/scripts/1_import_data.do"
-do "$Driving/scripts/2_clean_data.do"
-do "$Driving/scripts/3_combine_data.do"
-do "$Driving/scripts/4_analysis.do"
-do "$Driving/scripts/5_supporting_analysis.do"
-do "$Driving/scripts/6_tables.do"
+do "scripts/1_import_data.do"
+do "scripts/2_clean_data.do"
+do "scripts/3_combine_data.do"
+do "scripts/4_analysis.do"
+do "scripts/5_supporting_analysis.do"
+do "scripts/6_tables.do"
 
 * End log
 di "End date and time: $S_DATE $S_TIME"

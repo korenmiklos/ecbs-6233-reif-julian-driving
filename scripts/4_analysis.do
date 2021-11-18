@@ -4,7 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -94,7 +94,7 @@ if `rd_addhealth'==1 {
 		
 		* Add Health data
 		local input_filename = lower("`scenario'")
-		use "$Driving/data/add_health/derived/`input_filename'.dta", clear	
+		use "data/add_health/derived/`input_filename'.dta", clear	
 
 		local outcomes "DriverLicense VehicleMiles_150 VehicleMiles_265 Work4weeks NotEnrolled"	
 		
@@ -146,13 +146,13 @@ if `rd_addhealth'==1 {
 		
 			graph twoway (scatter `y' agemo_mda, `mformat') (line `y'_hat agemo_mda if agemo_mda <= -1, `lformat') (line `y'_hat agemo_mda if agemo_mda > 0, `lformat')  ///
 						, xtitle("Age (in months) since MDA", `xtitlesize') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsize') graphregion(fcolor(white)) legend(off)
-			graph export "$Driving/results/figures/rd_`filename'.pdf", as(pdf) replace
+			graph export "results/figures/rd_`filename'.pdf", as(pdf) replace
 		}
 	}
 	
 	* Output regression results
 	use "`results'", clear
-	save "$Driving/results/intermediate/addhealth_rd.dta", replace
+	save "results/intermediate/addhealth_rd.dta", replace
 	
 	* Output figure for driver's license and vehicle miles driven (male/female on same plot)
 	use "`male_female'", clear
@@ -161,14 +161,14 @@ if `rd_addhealth'==1 {
 	graph twoway (scatter DriverLicense_Male agemo_mda, `mformat') (line DriverLicense_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line DriverLicense_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
 				 (scatter DriverLicense_Female agemo_mda, `mformat2') (line DriverLicense_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line DriverLicense_hat_Female agemo_mda if agemo_mda > 0, `lformat2') ///	
 				, xtitle("Age (in months) since MDA", `xtitlesize') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Females" 5 "") `legendsize')
-	graph export "$Driving/results/figures/rd_license_male_female.pdf", as(pdf) replace
+	graph export "results/figures/rd_license_male_female.pdf", as(pdf) replace
 
 	* Vehicle miles driven
 	format *Male %12.0fc
 	graph twoway (scatter VehicleMiles_150_Male agemo_mda, `mformat') (line VehicleMiles_150_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line VehicleMiles_150_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
 				 (scatter VehicleMiles_150_Female agemo_mda, `mformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda > 0, `lformat2') ///	
 				, xtitle("Age (in months) since MDA", `xtitlesize') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(0(500)2500, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Females" 5 "") `legendsize')
-	graph export "$Driving/results/figures/rd_vmd150_male_female.pdf", as(pdf) replace		
+	graph export "results/figures/rd_vmd150_male_female.pdf", as(pdf) replace		
 }
 
 ********************************
@@ -186,7 +186,7 @@ if `rd_mortality'==1 {
 	
 		* Main data for analysis
 		local input_filename = lower("`scenario'")
-		use "$Driving/data/mortality/derived/`input_filename'.dta", clear
+		use "data/mortality/derived/`input_filename'.dta", clear
 		
 		* Causes of death
 		unab outcomes : cod_*
@@ -242,7 +242,7 @@ if `rd_mortality'==1 {
 					 (scatter cod_external agemo_mda, `mformat2') (line cod_external_hat agemo_mda if agemo_mda <= -1, `lformat') (line cod_external_hat agemo_mda if agemo_mda > 0, `lformat') /// 
 					 (scatter cod_internal agemo_mda, `mformat3') (line cod_internal_hat agemo_mda if agemo_mda <= -1, `lformat') (line cod_internal_hat agemo_mda if agemo_mda > 0, `lformat') ///
 					 , xtitle("Age (in months) since MDA", `xtitlesize') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsize' gmax gmin) graphregion(fcolor(white)) legend(order(1 "All" 4 "External" 7 "Internal") `legendsize')
-		if inlist("`scenario'", "Male", "Female") graph export "$Driving/results/figures/rd_any_ext_int_`filename'.pdf", as(pdf) replace
+		if inlist("`scenario'", "Male", "Female") graph export "results/figures/rd_any_ext_int_`filename'.pdf", as(pdf) replace
 		
 		* Figures by heterogeneity specifications
 		foreach y of varlist `outcomes' {
@@ -255,14 +255,14 @@ if `rd_mortality'==1 {
 			if inlist("`y'","cod_any","cod_external","cod_internal","cod_MVA","cod_homicide")|inlist("`y'","cod_sa","cod_sa_firearms","cod_sa_other","cod_acct_poisoning","cod_suicide_poisoning") continue
 			graph twoway (scatter `y' agemo_mda,  `mformat') (line `y'_hat agemo_mda if agemo_mda <= -1, `lformat') (line `y'_hat agemo_mda if agemo_mda > 0, `lformat')  ///
     			 , xtitle("Age (in months) since MDA") ytitle("Deaths per 100,000") xlabel(-12(2)12) graphregion(fcolor(white)) legend(off)				 			
-			graph export "$Driving/results/figures/rd_`filename'.pdf", as(pdf) replace
+			graph export "results/figures/rd_`filename'.pdf", as(pdf) replace
 			
 		}
 	}
 	
 	* Output regression results
 	use "`results'", clear
-	save "$Driving/results/intermediate/mortality_rd.dta", replace
+	save "results/intermediate/mortality_rd.dta", replace
 	
 	* Output main figure for all causes and MVA (male/female on same plot)
 	use "`male_female'", clear
@@ -271,13 +271,13 @@ if `rd_mortality'==1 {
 	graph twoway (scatter cod_any_Male agemo_mda, `mformat') (line cod_any_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line cod_any_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
 				 (scatter cod_any_Female agemo_mda, `mformat2') (line cod_any_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line cod_any_hat_Female agemo_mda if agemo_mda > 0, `lformat2') ///
 				, xtitle("Age (in months) since MDA", `xtitlesize') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(20(15)80, `ylabsize') graphregion(fcolor(white)) legend(cols(4) order(1 "Males" 2 "" 4 "Females" 5 "") `legendsize')
-	graph export "$Driving/results/figures/rd_any_male_female.pdf", as(pdf) replace
+	graph export "results/figures/rd_any_male_female.pdf", as(pdf) replace
 	
 	* MVA
 	graph twoway (scatter cod_MVA_Male agemo_mda, `mformat') (line cod_MVA_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line cod_MVA_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
 				 (scatter cod_MVA_Female agemo_mda, `mformat2') (line cod_MVA_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line cod_MVA_hat_Female agemo_mda if agemo_mda > 0, `lformat2') ///	
 				, xtitle("Age (in months) since MDA", `xtitlesize') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Females" 5 "") `legendsize')
-	graph export "$Driving/results/figures/rd_mva_male_female.pdf", as(pdf) replace	
+	graph export "results/figures/rd_mva_male_female.pdf", as(pdf) replace	
 }
 
 ***************************************************************
@@ -295,7 +295,7 @@ if `rd_mortality_yearbins'==1 {
 		
 		* Main data for analysis
 		local input_filename = lower("`scenario'")
-		use "$Driving/data/mortality/derived/`input_filename'_`yr'.dta", clear
+		use "data/mortality/derived/`input_filename'_`yr'.dta", clear
 		
 		* Causes of death
 		local outcomes "cod_MVA cod_sa_poisoning"	
@@ -348,7 +348,7 @@ if `rd_mortality_yearbins'==1 {
 					 (line ci_lower years,  clcolor(`color') clpattern(dash) lwidth(medium) ) ///
 					 (line ci_upper years,  clcolor(`color') clpattern(dash) lwidth(medium) ) ///
 					 , xtitle("Year", `xtitlesize') ytitle("Deaths per 100,000", `ytitlesize') xlabel(1983(4)2013, `xlabsize') ylabel(, `ylabsize') graphregion(fcolor(white)) legend(order(1 "`scen' estimate" 2 "95% confidence interval") `legendsize') yline(0)
-		graph export "$Driving/results/figures/yearbins_`filename'.pdf", as(pdf) replace
+		graph export "results/figures/yearbins_`filename'.pdf", as(pdf) replace
 	}
 	}
 	
@@ -364,7 +364,7 @@ if `rd_mortality_suicide_acct'==1 {
 		
 		* Main data for analysis
 		local input_filename = lower("`scenario'")
-		use "$Driving/data/mortality/derived/sa_`input_filename'.dta", clear
+		use "data/mortality/derived/sa_`input_filename'.dta", clear
 
 		* Causes of death
 		local outcomes "cod_suicide* cod_acct* cod_sa*"	
@@ -396,7 +396,7 @@ if `rd_mortality_suicide_acct'==1 {
 	
 	* Output regression results
 	use "`results'", clear
-	save "$Driving/results/intermediate/mortality_rd_suicide_acct.dta", replace
+	save "results/intermediate/mortality_rd_suicide_acct.dta", replace
 }
 
 ************************************************************
@@ -409,7 +409,7 @@ if `rd_mortality_robustness'==1 {
 		
 		* Main data for analysis
 		local input_filename = lower("`scenario'")
-		use "$Driving/data/mortality/derived/`input_filename'.dta", clear
+		use "data/mortality/derived/`input_filename'.dta", clear
 		
 		* Causes of death
 		local outcomes "cod_any cod_MVA cod_sa_poisoning"	
@@ -476,7 +476,7 @@ if `rd_mortality_robustness'==1 {
 	
 	* Output regression results
 	use "`results'", clear
-	save "$Driving/results/intermediate/mortality_rd_robustness.dta", replace
+	save "results/intermediate/mortality_rd_robustness.dta", replace
 }
 
 ***********************
@@ -489,7 +489,7 @@ if `rd_mortality_placebo'==1 {
 	
 		* Main data for analysis
 		local input_filename = lower("`scenario'")
-		use "$Driving/data/mortality/derived/`input_filename'.dta", clear
+		use "data/mortality/derived/`input_filename'.dta", clear
 
 		* Causes of death
 		local outcomes "cod_MVA cod_sa_poisoning"	
@@ -529,7 +529,7 @@ if `rd_mortality_placebo'==1 {
 	
 	* Output regression results
 	use "`results'", clear
-	save "$Driving/results/intermediate/mortality_rd_placebo.dta", replace
+	save "results/intermediate/mortality_rd_placebo.dta", replace
 	
 }
 
@@ -570,7 +570,7 @@ if `adjustedp' {
 	***
 	* Mortality outcomes
 	***
-	use "$Driving/results/intermediate/mortality_rd.dta", clear
+	use "results/intermediate/mortality_rd.dta", clear
 	isid var y scenario
 	keep if inlist(scenario,"All","Male","Female")
 
@@ -592,7 +592,7 @@ if `adjustedp' {
 	***
 	* Add health outcomes
 	***
-	use "$Driving/results/intermediate/addhealth_rd.dta", clear
+	use "results/intermediate/addhealth_rd.dta", clear
 	keep if inlist(scenario,"All","Male","Female")
 	isid var y scenario
 
@@ -610,7 +610,7 @@ if `adjustedp' {
 	calc_adjustedp
 	keep rdspec var y scenario num_H0 pbonf psidak
 	append using "`adjustedp'"
-	save "$Driving/results/intermediate/adjustedp.dta", replace
+	save "results/intermediate/adjustedp.dta", replace
 }
 
 

@@ -4,7 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -57,8 +57,7 @@ qui forval index = 1/`num_surveys' {
 	
 	* Pre-2003
 	if `year'<2003 {
-		cd "$MortalityDataMOB/`year'"	
-		qui do mort`year'.do
+		qui do "$MortalityDataMOB/`year'/mort`year'.do"
 		
 		* Note: statersf is usually the NVS state code in these years. But in these confidential files, it is in fact the stfips code
 		* Thare are some "00" codes; by comparing to public file, we deduced that these are all foreign residents (ie from Canada, Mexico, etc) 
@@ -66,15 +65,14 @@ qui forval index = 1/`num_surveys' {
 		ren statersf stfips
 		drop if stfips==0
 		assert inrange(stfips,1,56)
-		merge m:1 stfips using "$Driving/data/fips/state_fips_codes.dta", keepusing(abbr) nogenerate assert(match using) keep(match)
+		merge m:1 stfips using "data/fips/state_fips_codes.dta", keepusing(abbr) nogenerate assert(match using) keep(match)
 		ren stfips statersf
 	}
 	
 	* Formatting change in 2003
 	if `year'>=2003 {
 	
-		cd "$MortalityDataMOB/`year'"
-		qui do mort`year'.do
+		qui do "$MortalityDataMOB/`year'/mort`year'.do"
 		
 		* statersf changes to a two-letter abbreviation beginning in 2003
 		ren statersf abbr
@@ -86,7 +84,7 @@ qui forval index = 1/`num_surveys' {
 		drop if inlist(abbr,"AS","FM","GU","MP","PR","PW","UM","VI")	
 		
 		* Merge on stfips codes
-		merge m:1 abbr using "$Driving/data/fips/state_fips_codes.dta", keepusing(stfips) nogenerate assert(match using) keep(match)
+		merge m:1 abbr using "data/fips/state_fips_codes.dta", keepusing(stfips) nogenerate assert(match using) keep(match)
 		ren stfips statersf
 				
 		cap replace sex = "1" if sex=="M"
@@ -160,7 +158,7 @@ label var race "Race (white=1;nonwhite=2,3,..)"
 
 * Save the data
 compress		
-save "$Driving/processed/intermediate/cdc_mortality8314_raw_ageunit.dta", replace	
+save "processed/intermediate/cdc_mortality8314_raw_ageunit.dta", replace	
 
 }
 
@@ -205,7 +203,7 @@ qui forval index = 1/`num_surveys' {
 
 * Save the data
 compress		
-save "$Driving/processed/intermediate/fars_raw_data8314_person.dta", replace
+save "processed/intermediate/fars_raw_data8314_person.dta", replace
 
 }
 
@@ -215,7 +213,7 @@ save "$Driving/processed/intermediate/fars_raw_data8314_person.dta", replace
 if `fhwa'==1 {
 
 * Licensed driver counts by age from FHWA
-import excel "$Driving/data/fhwa/licensed_drivers_1964-2014_ages16-19.xlsx", firstrow clear
+import excel "data/fhwa/licensed_drivers_1964-2014_ages16-19.xlsx", firstrow clear
 
 * Drop unnecessary years to save space (keep only 1983-2014)
 keep if inrange(year, 1983, 2014)
@@ -229,7 +227,7 @@ label var total_19 "Drivers aged 19"
 
 * Save the data
 compress		
-save "$Driving/processed/intermediate/licensed_drivers_1983to2014.dta", replace
+save "processed/intermediate/licensed_drivers_1983to2014.dta", replace
 
 }
 

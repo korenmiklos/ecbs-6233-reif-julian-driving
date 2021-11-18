@@ -4,7 +4,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -24,7 +24,7 @@ local mdalaw8314 1
 if `mortality'==1 {
 
 * Main mortality data
-use "$Driving/processed/intermediate/cdc_mortality8314_raw_ageunit.dta", clear
+use "processed/intermediate/cdc_mortality8314_raw_ageunit.dta", clear
 
 ***
 * Sex (Male=1 Female=2)
@@ -253,7 +253,7 @@ label var white "Race white indicator"
 
 * Save the data
 compress
-save "$Driving/processed/intermediate/cdc_mortality_data83to14st.dta", replace
+save "processed/intermediate/cdc_mortality_data83to14st.dta", replace
 
 }
 
@@ -264,7 +264,7 @@ if `mdalaw8314'==1 {
 
 * Data on minimum driving age laws for restricted license
 clear
-import excel "$Driving/data/mda/mda_laws_monthly_1983_2014.xlsx", firstrow
+import excel "data/mda/mda_laws_monthly_1983_2014.xlsx", firstrow
 
 ** Minimum driving ages in months
 foreach y in "1" "2" "3" "4" {
@@ -340,7 +340,7 @@ label variable mda_months "MDA in months"
 
 * Save the data
 compress
-save "$Driving/processed/intermediate/mdalaws_monthly8314.dta", replace
+save "processed/intermediate/mdalaws_monthly8314.dta", replace
 
 }
 

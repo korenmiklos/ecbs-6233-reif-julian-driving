@@ -5,7 +5,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -53,7 +53,7 @@ label var pop "Population"
 	
 * Save the data
 compress
-save "$Driving/data/seer/derived/seer_pop1983_2014st.dta", replace
+save "data/seer/derived/seer_pop1983_2014st.dta", replace
 
 
 **EOF

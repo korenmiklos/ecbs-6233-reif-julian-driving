@@ -1,0 +1,1795 @@
+
+  ___  ____  ____  ____  ____ ©
+ /__    /   ____/   /   ____/      17.0
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2021 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-STATA-PC        https://www.stata.com
+                                   979-696-4600        stata@stata.com
+
+Stata license: Single-user 2-core  perpetual
+Serial number: 501706328764
+  Licensed to: Miklos Koren
+               CEU MicroData
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000; see help set_maxvar.
+
+. do scripts/6_tables.do 
+
+. ************
+. * SCRIPT: 6_tables.do
+. * PURPOSE: Create LaTeX tables from the outputted results
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "scripts/libraries/stata"
+  [1]              "scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile t table male_female
+
+. 
+. local reg_settings "parentheses(stderr) asterisk(5 1) sigfig(3)"
+
+. local texsave_settings "replace autonumber nofix"
+
+. 
+. local fn_bracket "Robust, bias-corrected 95\% confidence intervals are report
+> ed in brackets."
+
+. local fn_asterisk "A */** indicates significance at the 5\%/1\% level using c
+> onventional inference."
+
+. local fn_familyp "Family-wise \(p\)-values, reported in braces, adjust for th
+> e number of outcome variables in each family and for the number of subgroups.
+> "
+
+. 
+. local fn_col2_ols "Column (2) reports OLS estimates from a model employing a 
+> bandwidth of 24 months and reports robust standard errors in parentheses."
+
+. local fn_col3_mse "Column (3) reports MSE-optimal estimates and reports robus
+> t, bias-corrected 95\% confidence intervals in brackets."
+
+. 
+. 
+. * Data tables for Add Health, MDA laws, and ICD codes were created manually
+. copy "data/add_health/appendix_data_addhealth.tex" "results/tables/appendix_d
+> ata_addhealth.tex", replace
+
+. copy "data/mda/appendix_data_mda.tex" "results/tables/appendix_data_mda.tex",
+>  replace
+
+. copy "data/icd_codes/appendix_data_icd_codes.tex" "results/tables/appendix_da
+> ta_icd_codes.tex", replace
+
+. 
+. 
+. * Standardized cleaning of variable names
+. program drop _all
+
+. program clean_varnames 
+  1. 
+.         local indent "\ \ \ \"
+  2. 
+.         * Mortality
+.         replace `1' = "All causes" if `1'=="any"
+  3.         replace `1' = "External causes" if `1'=="external"
+  4.         replace `1' = "`indent' Motor vehicle accident" if `1'=="MVA"
+  5.         replace `1' = "`indent' Suicide and accident" if `1'=="sa"
+  6.         replace `1' = "`indent' `indent' Firearm" if `1'=="sa_firearms" | 
+> `1'=="firearms"
+  7.         replace `1' = "`indent' `indent' Poisoning" if `1'=="sa_poisoning"
+>  | `1'=="poisoning"
+  8.         replace `1' = "`indent' `indent' `indent' Drug overdose" if `1'=="
+> sa_poisoning_subst" | `1'=="poisoning_subst"
+  9.         replace `1' = "`indent' `indent' `indent' Carbon monoxide and othe
+> r gases" if `1'=="sa_poisoning_gas" | `1'=="poisoning_gas"
+ 10.         replace `1' = "`indent' `indent' Drowning" if `1'=="sa_drowning" |
+>  `1'=="drowning"
+ 11.         replace `1' = "`indent' `indent' Other" if `1'=="sa_other" | `1'==
+> "other"
+ 12.         replace `1' = "`indent' Homicide" if `1'=="homicide"
+ 13.         replace `1' = "`indent' Other external" if `1'=="extother"
+ 14.         replace `1' = "Internal causes" if `1'=="internal"
+ 15.         
+.         * Add Health
+.         replace `1' = "Has driver's license" if `1'=="DriverLicense"
+ 16.         replace `1' = "Miles driven (miles/yr) (baseline)" if `1'=="Vehicl
+> eMiles_150"
+ 17.         replace `1' = "Miles driven (miles/yr) (alternate)" if `1'=="Vehic
+> leMiles_265"
+ 18.         
+.         * Heterogeneity 
+.         replace `1' = subinstr(`1',"WhiteMale",      "White male",     1)
+ 19.         replace `1' = subinstr(`1',"WhiteFemale",    "White female",   1)
+ 20.         replace `1' = subinstr(`1',"NonwhiteMale",   "Nonwhite male",  1)
+ 21.         replace `1' = subinstr(`1',"NonwhiteFemale", "Nonwhite female",1)
+ 22.         
+.         replace `1' = "Full sample" if strpos(`1',"All") & !strpos(`1',"cause
+> s")
+ 23.         
+.         replace `1' = "`indent' MDA is 16"   if `1'=="mda192"
+ 24.         replace `1' = "`indent' MDA is not 16"   if `1'=="mda_not192"
+ 25. 
+.         replace `1' = "January"   if `1'=="birmonth1" | `1'=="birmonth1_Femal
+> e"
+ 26.         replace `1' = "February"  if `1'=="birmonth2" | `1'=="birmonth2_Fe
+> male"
+ 27.         replace `1' = "March"     if `1'=="birmonth3" | `1'=="birmonth3_Fe
+> male"
+ 28.         replace `1' = "April"     if `1'=="birmonth4" | `1'=="birmonth4_Fe
+> male"
+ 29.         replace `1' = "May"       if `1'=="birmonth5" | `1'=="birmonth5_Fe
+> male"
+ 30.         replace `1' = "June"      if `1'=="birmonth6" | `1'=="birmonth6_Fe
+> male"
+ 31.         replace `1' = "July"      if `1'=="birmonth7" | `1'=="birmonth7_Fe
+> male"
+ 32.         replace `1' = "August"    if `1'=="birmonth8" | `1'=="birmonth8_Fe
+> male"
+ 33.         replace `1' = "September" if `1'=="birmonth9" | `1'=="birmonth9_Fe
+> male"
+ 34.         replace `1' = "October"   if `1'=="birmonth10" | `1'=="birmonth10_
+> Female"
+ 35.         replace `1' = "November"  if `1'=="birmonth11" | `1'=="birmonth11_
+> Female"
+ 36.         replace `1' = "December"  if `1'=="birmonth12" | `1'=="birmonth12_
+> Female"
+ 37.         
+. end
+
+. 
+. * Destring with a sigfig() option [code taken from regsave_tbl] - used for fo
+> rmatting decimals in the tables
+. program gtostring
+  1. 
+.         syntax varlist, sigfig(numlist integer min=1 max=1 >=1 <=20) [force r
+> eplace gen(passthru)]
+  2.         
+.         if "`sigfig'"!=""   {
+  3.                 if "`format'"!="" {
+  4.                         di as error "Cannot specify both the sigfig and fo
+> rmat options."
+  5.                         exit 198                                        
+  6.                 }
+  7.                 local format "%18.`sigfig'gc"
+  8.         }
+  9.         
+.         tostring `varlist', `force' `replace' format(`format') `gen'
+ 10. 
+.         qui foreach table of varlist `varlist' {
+ 11.         
+.                 cap confirm string var `table'
+ 12.                 if !_rc {
+ 13. 
+.                         tempvar tmp diff tail numast intvar orig lngth
+ 14.                         
+.                         gen `intvar' = `table'=="."
+ 15.                         gen `orig' = `table'
+ 16.                                         
+.                         gen     `tmp' = subinstr(`table',".","",1)
+ 17.                         replace `tmp' = subinstr(`tmp',".","",1)
+ 18.                         replace `tmp' = subinstr(`tmp',"(","",1)
+ 19.                         replace `tmp' = subinstr(`tmp',")","",1)
+ 20.                         replace `tmp' = subinstr(`tmp',"[","",1)
+ 21.                         replace `tmp' = subinstr(`tmp',"]","",1)
+ 22.                         replace `tmp' = subinstr(`tmp',"*","",.)
+ 23.                         replace `tmp' = subinstr(`tmp',"-","",.)
+ 24.                         
+.                         * Remove leading zero's following the decimal point (
+> they don't count towards sig figs)
+.                         gen `lngth' = length(`tmp')
+ 25.                         summ `lngth'
+ 26.                         forval x = `r(max)'(-1)1 {
+ 27.                                 replace `tmp' = subinstr(`tmp', "0"*`x',""
+> ,1) if substr(`tmp',1,`x')=="0"*`x'
+ 28.                         }
+ 29.                         
+.                         gen `diff' = `sigfig' - length(`tmp')
+ 30.                         gen `tail' = "0"*`diff'
+ 31.                         gen `numast' = length(`table') - length(subinstr(`
+> table', "*", "", .))
+ 32. 
+.                         * Leading zero's
+.                         replace `table' = "0"  + `table' if substr(`table',1,
+> 1)=="."
+ 33.                         replace `table' = subinstr(`table',"-.","-0.",1)  
+>  if substr(`table',1,2)=="-."
+ 34.                         replace `table' = subinstr(`table',"(.","(0.",1)  
+>  if substr(`table',1,2)=="(."
+ 35.                         replace `table' = subinstr(`table',"[.","[0.",1)  
+>  if substr(`table',1,2)=="[."
+ 36.                         replace `table' = subinstr(`table',"(-.","(-0.",1)
+>  if substr(`table',1,3)=="(-."
+ 37.                         replace `table' = subinstr(`table',"[-.","[-0.",1)
+>  if substr(`table',1,3)=="[-."
+ 38. 
+.                         * Trailing zero's (note: asterisks can't occur with "
+> )" or "]", because those are only for stderrs/tstats/ci)
+.                         replace `table' = `table' +       `tail'             
+>                                     if strpos(`table',".")!=0 & strpos(`table
+> ',"*")==0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !mi(`tail')
+ 39.                         replace `table' = `table' + "." + `tail'          
+>                                        if strpos(`table',".")==0 & strpos(`ta
+> ble',"*")==0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !mi(`tai
+> l')
+ 40.                         
+.                         replace `table' = substr(`table',1,length(`table')-`n
+> umast') +       `tail' + "*"*`numast'     if strpos(`table',".")!=0 & strpos(
+> `table',"*")!=0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !mi(`
+> tail')
+ 41.                         replace `table' = substr(`table',1,length(`table')
+> -`numast') + "." + `tail' + "*"*`numast'     if strpos(`table',".")==0 & strp
+> os(`table',"*")!=0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !m
+> i(`tail')
+ 42.                         
+.                         replace `table' = subinstr(`table',")",`tail'+")",1) 
+> if strpos(`table',".")!=0 & substr(`table',1,1)=="("
+ 43.                         replace `table' = subinstr(`table',"]",`tail'+"]",
+> 1) if strpos(`table',".")!=0 & substr(`table',1,1)=="["
+ 44.                         
+.                         * Variables that were stored as integers (or missing)
+>  are exact and shouldn't be altered
+.                         replace `table' = `orig' if `intvar'==1
+ 45.                         replace `table' = "" if `table'=="."
+ 46.                                         
+.                         drop `tmp' `diff' `tail' `numast' `intvar' `orig'
+ 47.                 }
+ 48.         }
+ 49. end
+
+. 
+. ********************************************************
+. * Annual US deaths per 100,000 population, 1983-2014
+. ********************************************************
+. local vars "cod_any cod_external cod_internal cod_MVA cod_homicide cod_extoth
+> er cod_sa cod_sa_firearms cod_sa_poisoning cod_sa_poisoning_subst cod_sa_pois
+> oning_gas cod_sa_drowning cod_sa_other"
+
+. 
+. local replace replace
+
+. local run_male_female = 0
+
+. qui foreach scenario in "Female" "Male" "All" {
+
+. 
+. clean_varnames cod
+(3 real changes made)
+(3 real changes made)
+variable cod was str18 now str30
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+variable cod was str30 now str37
+(3 real changes made)
+variable cod was str37 now str55
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. drop agegroup
+
+. order cod cod_ cod_2 cod_3 cod_4
+
+. label var cod "Cause of death"
+
+. 
+. * Create panels
+. ingap 1 14 27
+
+. replace cod = "A. All" in 1 if mi(cod)
+(1 real change made)
+
+. replace cod = "B. Males" in 15 if mi(cod)
+(1 real change made)
+
+. replace cod = "C. Females" in 29 if mi(cod)
+(1 real change made)
+
+. ingap 14 28, after
+
+. 
+. * Output table
+. local title "Annual US deaths per 100,000 population, 1983--2014"
+
+. local fn "Notes: Death counts come from the National Vital Statistics. Popula
+> tion estimates come from the Surveillance, Epidemiology, and End Results (SEE
+> R) Program."
+
+. 
+. texsave using "results/tables/appendix_data_mortality.tex", varlabels marker(
+> "tab:appendix_data_mortality")  size(small) bold("A. " "B. " "C. ") title("`t
+> itle'") hlines(1 16 31) footnote("`fn'") `texsave_settings'
+
+. 
+. *******************************************************************
+. *  Effect of driving eligibility on teenage driving and mortality
+. *******************************************************************
+. 
+. * Main mortality RD estimates
+. use "results/intermediate/mortality_rd.dta", clear
+
+. 
+. * Add Health RD estimates
+. append using "results/intermediate/addhealth_rd.dta"
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. keep if inlist(var,"Robust")
+(480 observations deleted)
+
+. replace coef = b_conv if var=="Robust"
+(62 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str7
+ci_lower was forced to string; some loss of information
+ci_upper was float now str6
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. * Adjusted p-values
+. merge 1:1 var y rdspec scenario using "results/intermediate/adjustedp.dta", n
+> ogenerate keep(match master)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                            22
+        from master                        22  
+        from using                          0  
+
+    Matched                                40  
+    -----------------------------------------
+
+. 
+. * Remove "cod_" from the variable y
+. replace y = subinstr(y,"cod_","",1)
+(51 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. qui foreach y in extother homicide sa_other sa_drowning sa_poisoning_gas sa_p
+> oisoning_subst sa_poisoning sa_firearms sa MVA external internal any VehicleM
+> iles_265 VehicleMiles_150 DriverLicense {
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. drop if inlist(var,"DriverLicense_adjp","VehicleMiles_150_adjp","VehicleMiles
+> _265_adjp")
+(3 observations deleted)
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y_All full mean_y_Male male mean_y_Female female
+
+. gtostring mean_y*, force replace sigfig(3)
+mean_y_All was float now str4
+mean_y_All was forced to string; some loss of information
+mean_y_Male was float now str5
+mean_y_Male was forced to string; some loss of information
+mean_y_Female was float now str5
+mean_y_Female was forced to string; some loss of information
+
+. replace mean_y_All    = "" if mean_y_All=="."
+(0 real changes made)
+
+. replace mean_y_Male   = "" if mean_y_Male=="."
+(0 real changes made)
+
+. replace mean_y_Female = "" if mean_y_Female=="."
+(0 real changes made)
+
+. 
+. foreach v in male female full {
+  2.         replace `v' = "\(<\)0.0001" if real(`v')<0.0001 & strpos(var,"adjp
+> ")
+  3.         replace `v' = "\(<\)0.001" if real(`v')<0.001 & strpos(var,"adjp")
+>       
+  4.         replace `v' = "\(<\)0.01" if real(`v')<0.01 & strpos(var,"adjp")  
+>       
+  5.         replace `v' = "\{"+ `v' +"\}" if strpos(var,"adjp")
+  6.         label var `v' "RD"
+  7. }
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(13 real changes made)
+(4 real changes made)
+(2 real changes made)
+(0 real changes made)
+(13 real changes made)
+(1 real change made)
+(2 real changes made)
+(0 real changes made)
+(13 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_ci")
+(16 real changes made)
+
+. replace var = "" if strpos(var,"_adjp")
+(13 real changes made)
+
+. replace var = subinstr(var,"_coef","",1)
+(16 real changes made)
+
+. clean_varnames var
+(1 real change made)
+(1 real change made)
+variable var was str23 now str30
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+variable var was str30 now str37
+(1 real change made)
+variable var was str37 now str55
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str55 now str74
+(16 real changes made)
+
+. 
+. * Create panels
+. ingap 1 7
+
+. replace var = "A. Driving" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Mortality" in 8 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var full "RD"
+
+. label var male "RD"
+
+. label var female "RD"
+
+. label var mean_y_All "Mean"
+
+. label var mean_y_Male "Mean"
+
+. label var mean_y_Female "Mean"
+
+. label var var "Outcome variable"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on teenage driving and mortality"
+
+. local headerlines "& \multicolumn{2}{c}{Full sample} & \multicolumn{2}{c}{Mal
+> e} & \multicolumn{2}{c}{Female}" "\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmid
+> rule(lr){6-7}"
+
+. local fn "Notes: The driving estimates in Panel A are based on weighted respo
+> nses to the 1995--1996 Add Health surveys. The mortality estimates in Panel B
+> , which are measured in deaths per 100,000 person-years, are based on death c
+> ounts from the 1983--2014 National Vital Statistics and population data from 
+> the 1983--2014 Surveillance, Epidemiology, and End Results (SEER) Program.  C
+> olumns (1), (3), and (5) report means of the dependent variable one year befo
+> re reaching the minimum driving age (MDA). Columns (2), (4), and (6) report M
+> SE-optimal estimates of \(\beta\) from equation (\ref{E - RD1}). `fn_bracket'
+>  `fn_asterisk' `fn_familyp'"
+
+. 
+. texsave using "results/tables/rd_mortality.tex", varlabels marker("tab:rd_mor
+> tality") size(scriptsize) align(lCcCcCc) headerlines("`headerlines'") bold("A
+> . " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(scriptsize)) `t
+> exsave_settings'
+
+. 
+. ******************************************************************
+. * Effect of driving eligibility on female suicides and accidents   
+. ******************************************************************
+. 
+. * RD estimates for female suicides and accidents
+. use "results/intermediate/mortality_rd_suicide_acct.dta", clear
+
+. keep if scenario=="Female" & rdspec=="rdrobust"
+(21 observations deleted)
+
+. drop scenario
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. replace coef = b_conv if var=="Robust"
+(21 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str7
+ci_lower was forced to string; some loss of information
+ci_upper was float now str6
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. replace y = subinstr(y,"cod_","",1)
+(21 real changes made)
+
+. 
+. tempfile table_acct table_suicide table_sa
+
+. 
+. preserve
+
+. 
+. foreach t in "acct" "suicide" "sa" {
+  2. local run_no = 0
+  3. qui foreach y in `t' `t'_firearms `t'_poisoning `t'_poisoning_subst `t'_po
+> isoning_gas `t'_drowning `t'_other {
+  4. 
+.         * MSE-optimal
+.         regsave_tbl if y=="`y'" & rdspec=="rdrobust", name(rdrobust) `reg_set
+> tings'
+  5.         keep if inlist(var,"Robust_coef","ci")
+  6.         replace var = "`y'" if var=="Robust_coef"
+  7.         replace var = "`y'_ci" if var=="ci"
+  8.         if `run_no'==1 append using "`table_`t''"
+  9.         gen sortorder = _n
+ 10.         local run_no = 1
+ 11.         save "`table_`t''", replace
+ 12.         restore, preserve
+ 13. 
+.         * Mean
+.         keep if y=="`y'"
+ 14.         keep mean_y
+ 15.         gen var = "`y'"
+ 16.         merge 1:1 var using "`table_`t''", assert(match using) nogenerate
+ 17.         sort sortorder
+ 18.         drop sortorder
+ 19.         save "`table_`t''", replace
+ 20.         restore, preserve
+ 21. }
+ 22. }
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. restore, not
+
+. use "`table_acct'", clear
+
+. rename (mean_y rdrobust) (mean_y_acct rdrobust_acct)
+
+. replace var = "total" if var=="acct"
+(1 real change made)
+
+. replace var = "total_ci" if var=="acct_ci"
+(1 real change made)
+
+. replace var = subinstr(var,"acct_","",1)
+(12 real changes made)
+
+. save "`table'", replace
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03185.000002 saved
+    as .dta format
+
+. 
+. use "`table_suicide'", clear
+
+. rename (mean_y rdrobust) (mean_y_suicide rdrobust_suicide)
+
+. replace var = "total" if var=="suicide"
+(1 real change made)
+
+. replace var = "total_ci" if var=="suicide_ci"
+(1 real change made)
+
+. replace var = subinstr(var,"suicide_","",1)
+(12 real changes made)
+
+. merge 1:1 var using "`table'", assert(match) nogenerate
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                                14  
+    -----------------------------------------
+
+. save "`table'", replace
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St03185.000002 saved
+    as .dta format
+
+. 
+. use "`table_sa'", clear
+
+. rename (mean_y rdrobust) (mean_y_sa rdrobust_sa)
+
+. replace var = "total" if var=="sa"
+(1 real change made)
+
+. replace var = "total_ci" if var=="sa_ci"
+(1 real change made)
+
+. replace var = subinstr(var,"sa_","",1)
+(12 real changes made)
+
+. merge 1:1 var using "`table'", assert(match) nogenerate
+(variable var was str21, now str26 to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                                14  
+    -----------------------------------------
+
+. 
+. order var mean_y_suicide rdrobust_suicide mean_y_acct rdrobust_acct mean_y_sa
+>  rdrobust_sa
+
+. gtostring mean_y*, force replace sigfig(3)
+mean_y_suicide was float now str5
+mean_y_suicide was forced to string; some loss of information
+mean_y_acct was float now str4
+mean_y_acct was forced to string; some loss of information
+mean_y_sa was float now str4
+mean_y_sa was forced to string; some loss of information
+
+. 
+. sortobs var, values("total" "total_ci" "firearms" "firearms_ci" "poisoning" "
+> poisoning_ci" "poisoning_subst" "poisoning_subst_ci" "poisoning_gas" "poisoni
+> ng_gas_ci" "drowning" "drowning_ci" "other" "other_ci")
+
+. replace var = "Total suicides/accidents" if var=="total"
+(1 real change made)
+
+. replace var = "" if strpos(var,"_ci")
+(7 real changes made)
+
+. clean_varnames var
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+variable var was str26 now str37
+(1 real change made)
+variable var was str37 now str55
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = subinstr(var,"\ \ \ \","",1)
+(6 real changes made)
+
+. 
+. * Label variables
+. foreach v in suicide acct sa {
+  2.         label var rdrobust_`v' "RD"
+  3.         label var mean_y_`v' "Mean"
+  4. }
+
+. label var var "Cause of death"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on female suicides and accidents"
+
+. local headerlines "& \multicolumn{2}{c}{Female suicides} & \multicolumn{2}{c}
+> {Female accidents} & \multicolumn{2}{c}{Female suicides and accidents}"  "\cm
+> idrule(lr){2-3} \cmidrule(lr){4-5}  \cmidrule(lr){6-7}"
+
+. local fn "Notes: This table reports MSE-optimal estimates of \(\beta\) from e
+> quation (\ref{E - RD1}). The dependent variable is deaths per 100,000 person-
+> years. Columns (1), (3), and (5) report means of the dependent variable one y
+> ear before reaching the minimum driving age (MDA). Columns (5)--(6) reproduce
+>  the numbers reported in Columns (5)--(6) of Table \ref{tab:rd_mortality}. Th
+> e estimates in Columns (2) and (4) do not necessarily add up to the estimate 
+> in Column (6) because bandwidths are not constant across different regression
+> s. `fn_bracket' `fn_asterisk' Familywise \(p\)-values are not reported in thi
+> s exploratory analysis."
+
+. local model rdrobust
+
+. texsave var mean_y_suicide `model'_suicide mean_y_acct `model'_acct mean_y_sa
+>  `model'_sa using "results/tables/rd_mortality_sa_female.tex", varlabels mark
+> er("tab:rd_mortality_sa_mse") headerlines("`headerlines'") title("`title'") f
+> ootnote("`fn'") landscape align(lCcCcCc) size(small) `texsave_settings'
+
+. 
+. **********************************************************************
+. * Effect of driving eligibility on mortality for different subgroups
+. **********************************************************************
+. 
+. * Main mortality RD estimates
+. use "results/intermediate/mortality_rd.dta", clear
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. keep if inlist(var,"1.post","Robust")
+(357 observations deleted)
+
+. replace coef = b_conv if var=="Robust"
+(51 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str7
+ci_lower was forced to string; some loss of information
+ci_upper was float now str6
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. * We will use male/female results in two different tables, so create a duplic
+> ate
+. expand 2 if inlist(scenario,"Female","Male"), gen(dup)
+(52 observations created)
+
+. replace scenario = "mda_Female" if scenario=="Female" & dup==1
+(26 real changes made)
+
+. replace scenario = "mda_Male" if scenario=="Male" & dup==1
+(26 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. foreach y in cod_MVA cod_sa_poisoning {
+  2. qui foreach scen in "mda_not192_Female" "mda192_Female" "mda_Female" "mda_
+> not192_Male" "mda192_Male" "mda_Male" {
+  3.         
+.         * OLS
+.         regsave_tbl if scenario=="`scen'" & y=="`y'" & rdspec=="ols", name(ol
+> s) `reg_settings'
+  4.         keep if inlist(var,"1.post_coef", "1.post_stderr")
+  5.         replace var = "`y'_`scen'" if var=="1.post_coef"
+  6.         replace var = "`y'_`scen'_ci" if var=="1.post_stderr"
+  7.         if `run_no'==1 append using "`table'"
+  8.         gen sortorder = _n
+  9.         local run_no = 1
+ 10.         save "`table'", replace
+ 11.         restore, preserve
+ 12. 
+.         * MSE-optimal
+.         regsave_tbl if scenario=="`scen'" & y=="`y'" & rdspec=="rdrobust", na
+> me(rdrobust) `reg_settings'
+ 13.         keep if inlist(var,"Robust_coef","ci")
+ 14.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 15.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 16.         merge 1:1 var using "`table'", assert(match using) nogenerate
+ 17.         save "`table'", replace
+ 18.         restore, preserve
+ 19. 
+.         * Mean (same for OLS and rdrobust)
+.         keep if scenario=="`scen'" & y=="`y'" & rdspec=="ols"
+ 20.         keep mean_y
+ 21.         gen var = "`y'_`scen'"
+ 22.         merge 1:1 var using "`table'", assert(match using) nogenerate   
+ 23.         sort sortorder
+ 24.         drop sortorder
+ 25.         
+.         save "`table'", replace
+ 26.         restore, preserve
+ 27. }
+ 28. }
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y ols rdrobust
+
+. tostring mean_y, force replace format(%5.3fc)
+mean_y was float now str6
+mean_y was forced to string; some loss of information
+
+. replace mean_y = "" if mean_y=="."
+(12 real changes made)
+
+. 
+. gen     table = "MVA" if strpos(var,"cod_MVA")
+(12 missing values generated)
+
+. replace table = "sa_poisoning_subst" if strpos(var,"cod_sa_poisoning_subst")
+(0 real changes made)
+
+. replace table = "sa_poisoning" if strpos(var,"cod_sa_poisoning") & !strpos(va
+> r,"cod_sa_poisoning_subst")
+variable table was str3 now str12
+(12 real changes made)
+
+. gen mdascen = strpos(var,"mda")!=0
+
+. assert !mi(table)
+
+. preserve
+
+. 
+. foreach t in "MVA" "sa_poisoning" {
+  2. 
+.         keep if table=="`t'"
+  3. 
+.         replace var = "" if strpos(var,"_ci")
+  4. 
+.         local indent "\ \ \ \"
+  5.         replace var = "`indent' " + var if strpos(var,"cod_MVA_") & !strpo
+> s(var,"mda")
+  6.         replace var = "`indent' " + var if strpos(var,"cod_sa_poisoning_su
+> bst_") & !strpos(var,"mda")
+  7.         replace var = "`indent' " + var if strpos(var,"cod_sa_poisoning_")
+>  & !strpos(var,"mda")
+  8.         
+.         replace var = subinstr(var,"cod_MVA_","",1)
+  9.         replace var = subinstr(var,"cod_sa_poisoning_subst_","",1)
+ 10.         replace var = subinstr(var,"cod_sa_poisoning_","",1)
+ 11.         
+.         * Create panels
+.         ingap 1 7
+ 12.         replace var = "Male" in 1 if mi(var)
+ 13.         replace var = "Female" in 8 if mi(var)
+ 14. 
+.         replace mdascen = 1 in 1
+ 15.         replace mdascen = 1 in 8
+ 16. 
+.         replace var = "`indent' Full sample" if var=="mda_Male" | var=="mda_F
+> emale"
+ 17.         replace var = subinstr(var,"_Male","",1) if mdascen==1 
+ 18.         replace var = subinstr(var,"_Female","",1) if mdascen==1 
+ 19.         clean_varnames var
+ 20.         
+.         * Label variables
+.         label var ols "OLS"
+ 21.         label var rdrobust "MSE optimal"
+ 22.         label var mean_y "Mean"
+ 23.         label var var "Subgroup"
+ 24.         drop table
+ 25. 
+.         if "`t'"=="MVA" local outcome "motor vehicle fatalities"
+ 26.         else if "`t'"=="sa_poisoning" local outcome "poisoning deaths"
+ 27.         local name = lower("`t'")
+ 28. 
+.         * All table have same footnote
+.         local fn "Notes: This table reports estimates of \(\beta\) from equat
+> ion (\ref{E - RD1}) for different subgroups. The dependent variable is deaths
+>  per 100,000 person-years. Column (1) reports means of the dependent variable
+>  one year before reaching the minimum driving age (MDA). `fn_col2_ols' `fn_co
+> l3_mse' `fn_asterisk'"
+ 29.         
+.         * Heterogeneity by state MDA table
+.         local title "Effect of driving eligibility on `outcome' by state mini
+> mum driving age"
+ 30.         local headerlines "& & \multicolumn{2}{c}{RD estimate}" "\cmidrule
+> (lr){3-4}"
+ 31.         texsave var-rdrobust if mdascen==1 using "results/tables/rd_subgro
+> up_mda_`name'.tex", varlabels marker("tab:rd_`name'_heterogeneity_mda") heade
+> rsep(2ex) headerlines("`headerlines'") title("`title'") footnote("`fn'", size
+> (scriptsize)) size(footnotesize) `texsave_settings' 
+ 32.         
+.         restore, preserve
+ 33. }
+(12 observations deleted)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12 observations deleted)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. restore, not
+
+. 
+. *****************************************************************************
+> ****************
+. * Effect of driving eligibility on mortality using different bandwidth select
+> ion procedures
+. *****************************************************************************
+> ****************
+. 
+. * Mortality RD estimates for robustness checks
+. use "results/intermediate/mortality_rd_robustness.dta", clear
+
+. keep if !mi(bwselection)
+(27 observations deleted)
+
+. drop order_poly bw bw_bias
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. replace coef = b_conv
+(36 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str6
+ci_lower was forced to string; some loss of information
+ci_upper was float now str4
+ci_upper was forced to string; some loss of information
+
+. replace belowbw=round(belowbw, 1)
+(36 real changes made)
+
+. replace abovebw=round(abovebw, 1)
+(36 real changes made)
+
+. gtostring belowbw abovebw, force replace sigfig(1)
+belowbw was float now str2
+abovebw was float now str2
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. gen bw= "--" + belowbw + "/+" + abovebw
+
+. replace bw= "\(\pm\)" + abovebw if inlist(bwselection, "mserd", "cerrd")
+variable bw was str8 now str9
+(18 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. foreach y in sa_poisoning MVA any {
+  2. qui foreach scen in "Female" "Male" "All" {
+  3. 
+.         * MSE-optimal common
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="mserd", name(mserd) `reg_settings'
+  4.         
+.         keep if inlist(var,"Robust_coef","ci","bw")
+  5.         replace var = "`y'_`scen'" if var=="Robust_coef"
+  6.         replace var = "`y'_`scen'_ci" if var=="ci"
+  7.         replace var = "`y'_`scen'_bw" if var=="bw"
+  8.         if `run_no'==1 append using "`table'"
+  9.         gen sortorder = _n
+ 10.         local run_no = 1        
+ 11.         save "`table'", replace
+ 12.         restore, preserve
+ 13. 
+.         * MSE-optimal twoway
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="msetwo", name(msetwo) `reg_settings'
+ 14.         keep if inlist(var,"Robust_coef","ci","bw")
+ 15.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 16.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 17.         replace var = "`y'_`scen'_bw" if var=="bw"
+ 18.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 19.         save "`table'", replace
+ 20.         restore, preserve
+ 21.         
+.         * CER-optimal common
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="cerrd", name(cerrd) `reg_settings'
+ 22.         keep if inlist(var,"Robust_coef","ci","bw")
+ 23.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 24.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 25.         replace var = "`y'_`scen'_bw" if var=="bw"
+ 26.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 27.         save "`table'", replace
+ 28.         restore, preserve
+ 29. 
+.         * CER-optimal two
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="certwo", name(certwo) `reg_settings'
+ 30.         keep if inlist(var,"Robust_coef","ci","bw")
+ 31.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 32.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 33.         replace var = "`y'_`scen'_bw" if var=="bw"
+ 34.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 35.         save "`table'", replace
+ 36.         restore, preserve
+ 37.         
+.         * Mean (same for different BW selection methods)
+.         keep if scenario=="`scen'" & y=="cod_`y'" & bwselection=="mserd"
+ 38.         keep mean_y
+ 39.         gen var = "`y'_`scen'"
+ 40.         merge 1:m var using "`table'", assert(match using) nogenerate   
+ 41.         sort sortorder
+ 42.         drop sortorder
+ 43.         
+.         save "`table'", replace
+ 44.         restore, preserve
+ 45. }       
+ 46. }
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y mserd msetwo cerrd certwo
+
+. gtostring mean_y, force replace sigfig(3)
+mean_y was float now str4
+mean_y was forced to string; some loss of information
+
+. replace mean_y = "" if mean_y=="."
+(0 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_ci")
+(9 real changes made)
+
+. replace var = "" if strpos(var,"_bw")
+(9 real changes made)
+
+. replace var = subinstr(var,"MVA_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"sa_poisoning_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"any_","",1)
+(3 real changes made)
+
+. clean_varnames var
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str22 now str30
+(9 real changes made)
+
+. 
+. * Create panels
+. ingap 1 10 19 
+
+. replace var = "A. All deaths" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Motor vehicle fatalities" in 11 if mi(var)
+(1 real change made)
+
+. replace var = "C. Poisoning deaths" in 21 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var mserd "MSE optimal (1)"
+
+. label var msetwo "MSE optimal (2)"
+
+. label var cerrd "CER optimal (1)"
+
+. label var certwo "CER optimal (2)"
+
+. label var mean_y "Mean"
+
+. label var var "Subgroup"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on mortality using different bandw
+> idth selection procedures"
+
+. local headerlines "& & & \multicolumn{2}{c}{RD estimate}" "\cmidrule(lr){3-6}
+> "
+
+. local fn "Notes: The dependent variable is deaths per 100,000 person-years. C
+> olumn (1) reports means of the dependent variable one year before reaching th
+> e minimum driving age (MDA). Columns (2)--(5) report estimates of \(\beta\) f
+> rom equation (\ref{E - RD1}) using different bandwidths. The MSE-optimal meth
+> od selects a bandwidth that minimizes the mean squared error (MSE) of the poi
+> nt estimator. The coverage error rate (CER) optimal method selects a bandwidt
+> h that minimizes the asymptotic CER of the robust bias-corrected confidence i
+> nterval.  Column (2) reports estimates from our preferred specification, MSE 
+> optimal (1), which selects one common bandwidth on each side of the cutoff. C
+> olumns (3)--(5) report estimates using different bandwidth selection procedur
+> es: MSE optimal with different bandwidths on each side of the cutoff, CER opt
+> imal with one common bandwidth, and CER optimal with different bandwidths on 
+> each side of the cutoff. `fn_bracket' The selected bandwidths (rounded to the
+>  nearest month) are reported below the confidence interval. `fn_asterisk'"
+
+. 
+. texsave using "results/tables/rd_mortality_altbws.tex", varlabels marker("tab
+> :rd_mortality_altbws") size(scriptsize) align(lCcCcCc) headerlines("`headerli
+> nes'") bold("A. " "B. " "C. ") title("`title'") hlines(1 11 21)  footnote("`f
+> n'", size(scriptsize)) `texsave_settings'
+
+. 
+. *****************************************************************************
+> ***********
+. * Effect of driving eligibility on mortality using different polynomial appro
+> ximations
+. *****************************************************************************
+> ***********
+. 
+. * Mortality RD estimates for robustness checks
+. use "results/intermediate/mortality_rd_robustness.dta", clear
+
+. drop if mi(order_poly)
+(36 observations deleted)
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. replace coef = b_conv
+(27 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str5
+ci_lower was forced to string; some loss of information
+ci_upper was float now str4
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. foreach y in sa_poisoning MVA any {
+  2. qui foreach scen in "Female" "Male" "All" {
+  3. 
+.         * MSE-optimal linear
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & order_poly==1, name(linear) `reg_settings'
+  4.         keep if inlist(var,"Robust_coef","ci")
+  5.         replace var = "`y'_`scen'" if var=="Robust_coef"
+  6.         replace var = "`y'_`scen'_ci" if var=="ci"
+  7.         if `run_no'==1 append using "`table'"
+  8.         gen sortorder = _n
+  9.         local run_no = 1        
+ 10.         save "`table'", replace
+ 11.         restore, preserve
+ 12. 
+.         * MSE-optimal quadratic
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & order_poly==2, name(quadratic) `reg_settings'
+ 13.         keep if inlist(var,"Robust_coef","ci")
+ 14.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 15.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 16.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 17.         save "`table'", replace
+ 18.         restore, preserve
+ 19.         
+.         * MSE-optimal cubic
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & order_poly==3, name(cubic) `reg_settings'
+ 20.         keep if inlist(var,"Robust_coef","ci")
+ 21.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 22.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 23.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 24.         save "`table'", replace
+ 25.         restore, preserve
+ 26.         
+.         * Mean (same for different orders of polynomials)
+.         keep if scenario=="`scen'" & y=="cod_`y'" & order_poly==1
+ 27.         keep mean_y
+ 28.         gen var = "`y'_`scen'"
+ 29.         merge 1:m var using "`table'", assert(match using) nogenerate   
+ 30.         sort sortorder
+ 31.         drop sortorder
+ 32.         
+.         save "`table'", replace
+ 33.         restore, preserve
+ 34. }       
+ 35. }
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y linear quadratic cubic
+
+. gtostring mean_y, force replace sigfig(3)
+mean_y was float now str4
+mean_y was forced to string; some loss of information
+
+. replace mean_y = "" if mean_y=="."
+(0 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_ci")
+(9 real changes made)
+
+. replace var = "" if strpos(var,"_bw")
+(0 real changes made)
+
+. replace var = subinstr(var,"MVA_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"sa_poisoning_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"any_","",1)
+(3 real changes made)
+
+. clean_varnames var
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str22 now str30
+(9 real changes made)
+
+. 
+. * Create panels
+. ingap 1 7 13 
+
+. replace var = "A. All deaths" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Motor vehicle fatalities" in 8 if mi(var)
+(1 real change made)
+
+. replace var = "C. Poisoning deaths" in 15 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var linear "Linear"
+
+. label var quadratic "Quadratic"
+
+. label var cubic "Cubic"
+
+. label var mean_y "Mean"
+
+. label var var "Subgroup"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on mortality using different polyn
+> omial approximations"
+
+. local headerlines "& & & \multicolumn{1}{c}{RD estimate}" "\cmidrule(lr){3-5}
+> "
+
+. local fn "Notes: The dependent variable is deaths per 100,000 person-years. C
+> olumn (1) reports means of the dependent variable one year before reaching th
+> e minimum driving age (MDA). Columns (2)--(4) report estimates of \(\beta\) f
+> rom equation (\ref{E - RD1}) using different polynomial approximations: linea
+> r (our preferred specification), quadratic, and cubic. `fn_bracket' `fn_aster
+> isk'"
+
+. 
+. texsave using "results/tables/rd_mortality_polys.tex", varlabels marker("tab:
+> rd_mortality_polys") size(footnotesize) align(lCcCcCc) headerlines("`headerli
+> nes'") bold("A. " "B. " "C. ") title("`title'") hlines(1 8 15)  footnote("`fn
+> '", size(scriptsize)) `texsave_settings'
+
+. 
+. ***********************************************************************
+. * OLS: Effect of driving eligibility on teenage driving and mortality
+. ***********************************************************************
+. 
+. * Main mortality RD estimates
+. use "results/intermediate/mortality_rd.dta", clear
+
+. 
+. * Add Health RD estimates
+. append using "results/intermediate/addhealth_rd.dta"
+
+. replace scenario = "All" if mi(scenario)
+(0 real changes made)
+
+. 
+. keep if inlist(var,"1.post")
+(482 observations deleted)
+
+. 
+. * Adjusted p-values
+. merge 1:1 var y rdspec scenario using "results/intermediate/adjustedp.dta", n
+> ogenerate keep(match master)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                            21
+        from master                        21  
+        from using                          0  
+
+    Matched                                39  
+    -----------------------------------------
+
+. 
+. * Remove "cod_" from the variable y
+. replace y = subinstr(y,"cod_","",1)
+(51 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. qui foreach y in extother homicide sa_other sa_drowning sa_poisoning_gas sa_p
+> oisoning_subst sa_poisoning sa_firearms sa MVA external internal any VehicleM
+> iles_265 VehicleMiles_150 DriverLicense {
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. drop if inlist(var,"DriverLicense_adjp","VehicleMiles_150_adjp","VehicleMiles
+> _265_adjp")
+(3 observations deleted)
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y_All full mean_y_Male male mean_y_Female female
+
+. gtostring mean_y*, force replace sigfig(3)
+mean_y_All was float now str4
+mean_y_All was forced to string; some loss of information
+mean_y_Male was float now str5
+mean_y_Male was forced to string; some loss of information
+mean_y_Female was float now str5
+mean_y_Female was forced to string; some loss of information
+
+. replace mean_y_All    = "" if mean_y_All=="."
+(0 real changes made)
+
+. replace mean_y_Male   = "" if mean_y_Male=="."
+(0 real changes made)
+
+. replace mean_y_Female = "" if mean_y_Female=="."
+(0 real changes made)
+
+. 
+. foreach v in male female full {
+  2.         replace `v' = "\(<\)0.0001" if real(`v')<0.0001 & strpos(var,"adjp
+> ")
+  3.         replace `v' = "\(<\)0.001" if real(`v')<0.001 & strpos(var,"adjp")
+  4.         replace `v' = "\(<\)0.01" if real(`v')<0.01 & strpos(var,"adjp")  
+>       
+  5.         replace `v' = "\{"+ `v' +"\}" if strpos(var,"adjp")
+  6.         label var `v' "RD"
+  7. }
+(2 real changes made)
+(0 real changes made)
+(1 real change made)
+(13 real changes made)
+(3 real changes made)
+(0 real changes made)
+(1 real change made)
+(13 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(13 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_stderr")
+(16 real changes made)
+
+. replace var = "" if strpos(var,"_adjp")
+(13 real changes made)
+
+. replace var = subinstr(var,"_coef","",1)
+(16 real changes made)
+
+. clean_varnames var
+(1 real change made)
+(1 real change made)
+variable var was str25 now str30
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+variable var was str30 now str37
+(1 real change made)
+variable var was str37 now str55
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str55 now str74
+(16 real changes made)
+
+. 
+. * Create panels
+. ingap 1 7
+
+. replace var = "A. Driving" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Mortality" in 8 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var full "RD"
+
+. label var male "RD"
+
+. label var female "RD"
+
+. label var mean_y_All "Mean"
+
+. label var mean_y_Male "Mean"
+
+. label var mean_y_Female "Mean"
+
+. label var var "Outcome variable"
+
+. 
+. * Output table
+. local title "OLS estimates of effect of driving eligibility on teenage drivin
+> g and mortality"
+
+. local headerlines "& \multicolumn{2}{c}{Full sample} & \multicolumn{2}{c}{Mal
+> e} & \multicolumn{2}{c}{Female}" "\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmid
+> rule(lr){6-7}"
+
+. local fn "Notes: This table replicates Table \ref{tab:rd_mortality} but uses 
+> an OLS estimator with a bandwidth of 24 months instead of an MSE-optimal esti
+> mator. Columns (1), (3), and (5) report means of the dependent variable one y
+> ear before reaching the minimum driving age (MDA). Columns (2), (4), and (6) 
+> report OLS estimates of \(\beta\) from equation (\ref{E - RD1}). Robust stand
+> ard errors are reported in parentheses.  `fn_asterisk' `fn_familyp'"
+
+. 
+. texsave using "results/tables/rd_mortality_ols.tex", size(scriptsize) align(l
+> CcCcCc) headerlines("`headerlines'") varlabels marker("tab:rd_mortality_ols")
+>   bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(script
+> size)) `texsave_settings'
+
+. 
+. 
+. ** EOF
+. 
+end of do-file

@@ -5,7 +5,7 @@
 ************
 
 * Preamble (unnecessary when executing run.do)
-do "$Driving/scripts/programs/_config.do"
+do "scripts/programs/_config.do"
 
 ************
 * Code begins
@@ -15,13 +15,13 @@ clear
 set more off
 tempfile seer_data
 
-cap mkdir "$Driving/data/mortality"
-cap mkdir "$Driving/data/mortality/derived"
+cap mkdir "data/mortality"
+cap mkdir "data/mortality/derived"
 	
 qui foreach scenario in "All" "mda192" "mda_not192" "mda192_Female" "mda_not192_Female" "mda192_Male" "mda_not192_Male" "Male" "Female" {
 	
 	* Main data for analysis
-	use "$Driving/processed/mortality_mda_combined8314st.dta", clear
+	use "processed/mortality_mda_combined8314st.dta", clear
 	
 	* Subset the data down according to the heterogeneity specification of interest		
 	if      "`scenario'"=="Male"      keep if male==1
@@ -66,7 +66,7 @@ qui foreach scenario in "All" "mda192" "mda_not192" "mda192_Female" "mda_not192_
 	* Save the data
 	compress
 	local output_fn = lower("`scenario'")
-	save "$Driving/data/mortality/derived/`output_fn'.dta", replace
+	save "data/mortality/derived/`output_fn'.dta", replace
 }	
 
 ***
@@ -79,7 +79,7 @@ local num_yrs = 4
 qui forval yr = 1983(`num_yrs')2013 {
 qui foreach scenario in "Male" "Female" {
 		
-	use "$Driving/processed/mortality_mda_combined8314st.dta", clear
+	use "processed/mortality_mda_combined8314st.dta", clear
 	keep if inrange(year,`yr',`yr'+`num_yrs'-1)
 	if "`scenario'"=="Male"           keep if male==1
 	else if "`scenario'"=="Female"    keep if male==0
@@ -102,7 +102,7 @@ qui foreach scenario in "Male" "Female" {
 	* Save the data
 	compress
 	local output_fn = lower("`scenario'")
-	save "$Driving/data/mortality/derived/`output_fn'_`yr'.dta", replace	
+	save "data/mortality/derived/`output_fn'_`yr'.dta", replace	
 }
 }
 
@@ -112,7 +112,7 @@ qui foreach scenario in "Male" "Female" {
 	
 qui foreach scenario in "Male" "Female" {
 		
-	use "$Driving/processed/mortality_mda_combined8314nt.dta", clear
+	use "processed/mortality_mda_combined8314nt.dta", clear
 	if "`scenario'"=="Male"           keep if male==1
 	else if "`scenario'"=="Female"    keep if male==0
 
@@ -152,7 +152,7 @@ qui foreach scenario in "Male" "Female" {
 	* Save the data
 	compress
 	local output_fn = lower("`scenario'")
-	save "$Driving/data/mortality/derived/sa_`output_fn'.dta", replace		
+	save "data/mortality/derived/sa_`output_fn'.dta", replace		
 }
 
 ***
@@ -160,13 +160,13 @@ qui foreach scenario in "Male" "Female" {
 ***
 
 * SEER population data
-use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear
+use "data/seer/derived/seer_pop1983_2014st.dta", clear
 
 collapse (sum) pop, by(year male age) fast
 save "`seer_data'", replace
 
 * Main data for analysis with ages extended to 10-29
-use "$Driving/processed/intermediate/cdc_mortality_data83to14st.dta", clear
+use "processed/intermediate/cdc_mortality_data83to14st.dta", clear
 gen age = floor(agemo/12)
 
 * Group into ages 10-14, 15-19, 20-24, and 25-29
@@ -205,6 +205,6 @@ label var agegroup "Age group indicator (1=10-14;2=15-19;3=20-24;4=25-29)"
 
 * Save the data
 compress
-save "$Driving/data/mortality/derived/sex_agegroup_8314.dta", replace		
+save "data/mortality/derived/sex_agegroup_8314.dta", replace		
 
 ** EOF
