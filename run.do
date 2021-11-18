@@ -15,7 +15,7 @@
 **********************
 
 * User must define this global macro to point to the folder path that includes this run.do script
-global Driving ""
+global Driving "."
 
 * Confirm that the global for the project root directory was defined
 assert !missing("$Driving")

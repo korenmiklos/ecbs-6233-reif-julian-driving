@@ -1,0 +1,4190 @@
+
+  ___  ____  ____  ____  ____ ©
+ /__    /   ____/   /   ____/      17.0
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2021 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-STATA-PC        https://www.stata.com
+                                   979-696-4600        stata@stata.com
+
+Stata license: Single-user 2-core  perpetual
+Serial number: 501706328764
+  Licensed to: Miklos Koren
+               CEU MicroData
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000; see help set_maxvar.
+
+. do run.do 
+
+. **********************
+. * OVERVIEW
+. *   This script generates tables and figures for the paper:
+. *       "Teenage Driving, Mortality, and Risky Behaviors" (Jason Huh and Juli
+> an Reif)
+. *   All raw data are stored in /data
+. *   All tables are outputted to /results/tables
+. *   All figures are outputted to /results/figures
+. * 
+. * SOFTWARE REQUIREMENTS
+. *   Analyses run on Windows using Stata version 16
+. *
+. * TO PERFORM A CLEAN RUN, DELETE THE FOLLOWING TWO FOLDERS:
+. *   /processed
+. *   /results
+. **********************
+. 
+. * User must define this global macro to point to the folder path that include
+> s this run.do script
+. global Driving "."
+
+. 
+. * Confirm that the global for the project root directory was defined
+. assert !missing("$Driving")
+
+. 
+. * Initialize log and record system parameters
+. clear
+
+. set more off
+
+. cap mkdir "$Driving/scripts/logs"
+
+. cap log close
+
+. local datetime : di %tcCCYY.NN.DD!-HH.MM.SS `=clock("$S_DATE $S_TIME", "DMYhm
+> s")'
+
+. local logfile "$Driving/scripts/logs/`datetime'.log.txt"
+
+. log using "`logfile'", text
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/koren/Documents/workspace/ecbs-6233-reif-julian-driving/scr
+> ipts/logs/2021.11.18-10.35.23.log.txt
+  log type:  text
+ opened on:  18 Nov 2021, 10:35:23
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time: 18 Nov 2021 10:35:23
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 17
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 14 Jun 2021
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    2
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            Unix 
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Macintosh (Intel 64-bit)
+
+. 
+. * All required Stata packages are available in the /libraries/stata folder
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Driving/processed"
+
+. cap mkdir "$Driving/processed/intermediate"
+
+. cap mkdir "$Driving/results"
+
+. cap mkdir "$Driving/results/figures"
+
+. cap mkdir "$Driving/results/intermediate"
+
+. cap mkdir "$Driving/results/tables"
+
+. 
+. * Run all project scripts
+. do "$Driving/scripts/1_import_data.do"
+
+. ************
+. * SCRIPT: 1_import_data.do
+. * PURPOSE: imports the raw data and saves it in Stata readable format
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "$Driving/scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. assert !mi("$Driving")
+
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile tmp
+
+. 
+. * Set the flag equal to 1 to run that analysis, and equal to 0 otherwise
+. * Note: mortality and FARS codes are disabled because the raw data are not in
+> cluded in this replication package
+. local mortality 0
+
+. local fars 0
+
+. local fhwa 1
+
+. 
+. *************************************************
+. ******** Multiple Cause-of-Death Data ***********
+. *************************************************
+. if `mortality'==1 {
+. 
+. ** Read in multiple cause-of-death data
+. local years     "1983       1984      1985       1986        1987      1988  
+>      1989       1990        1991         1992       1993        1994      199
+> 5       1996        1997      1998       1999        2000       2001       20
+> 02        2003       2004       2005       2006        2007      2008       2
+> 009        2010       2011       2012        2013       2014"
+. local age       "age        age       age        age         age       age   
+>          age        age         age          age        age         age      
+>  age        age         age       age        age         age        age      
+>   age         age        age        age        age         age       age     
+>    age         age        age        age         age        age"
+. local sex       "sex        sex       sex        sex         sex       sex   
+>      sex        sex         sex          sex        sex         sex       sex
+>         sex         sex       sex        sex         sex        sex        se
+> x         sex        sex        sex        sex         sex       sex        s
+> ex         sex        sex        sex         sex        sex"
+. local staters   "statersf   statersf  statersf   statersf    statersf  stater
+> sf   statersf   statersf    statersf     statersf   statersf    statersf  sta
+> tersf   statersf    statersf  statersf   statersf    statersf   statersf   st
+> atersf    statersf   statersf   statersf   statersf    statersf  statersf   s
+> tatersf    statersf   statersf   statersf    statersf   statersf"
+. local race      "race       race      race       race        race      race  
+>      race       race        race         race       race        race      rac
+> e       race        race      race       race        race       race       ra
+> ce        racer5     racer5     race       race        race      race       r
+> ace        race       race       race        racer5     racer5"
+. local ucod      "ucod       ucod      ucod       ucod        ucod      ucod  
+>      ucod       ucod        ucod         ucod       ucod        ucod      uco
+> d       ucod        ucod      ucod       ucod        ucod       ucod       uc
+> od        ucod       ucod       ucod       ucod        ucod      ucod       u
+> cod        ucod       ucod       ucod        ucod       ucod"
+. local monthdth  "monthdth   monthdth  monthdth   monthdth    monthdth  monthd
+> th   monthdth   monthdth    monthdth     monthdth   monthdth    monthdth  mon
+> thdth   monthdth    monthdth  monthdth   monthdth    monthdth   monthdth   mo
+> nthdth    monthdth   monthdth   monthdth   monthdth    monthdth  monthdth   m
+> onthdth    monthdth   monthdth   monthdth    monthdth   monthdth"
+. local mo_brth   "mo_brth    mo_brth   mo_brth    mo_brth     mo_brth   mo_brt
+> h    mo_brth    mo_brth     mo_brth      mo_brth    mo_brth     mo_brth   mo_
+> brth    mo_brth     mo_brth   mo_brth    mo_brth     mo_brth    mo_brth    mo
+> _brth     mo_brth    mo_brth    mo_brth    mo_brth     mo_brth   mo_brth    m
+> o_brth     mo_brth    mo_brth    mo_brth     mo_brth    mo_brth"
+. local yr_brth   "yr_brth    yr_brth   yr_brth    yr_brth     yr_brth   yr_brt
+> h    yr_brth    yr_brth     yr_brth      yr_brth    yr_brth     yr_brth   yr_
+> brth    yr_brth     yr_brth   yr_brth    yr_brth     yr_brth    yr_brth    yr
+> _brth     yr_brth    yr_brth    yr_brth    yr_brth     yr_brth   yr_brth    y
+> r_brth     yr_brth    yr_brth    yr_brth     yr_brth    yr_brth"
+. local ageunit   "ageunit    ageunit   ageunit    ageunit     ageunit   ageuni
+> t    ageunit    ageunit     ageunit      ageunit    ageunit     ageunit   age
+> unit    ageunit     ageunit   ageunit    ageunit     ageunit    ageunit    ag
+> eunit     ageunit    ageunit    ageunit    ageunit     ageunit   ageunit    a
+> geunit     ageunit    ageunit    ageunit     ageunit    ageunit"
+. 
+. * Specify the optional variable sets to be imported
+. local import_vars "age sex staters race ucod monthdth mo_brth yr_brth ageunit
+> "
+. 
+. local run_no = 0
+. local num_surveys: word count `years'
+. qui forval index = 1/`num_surveys' {
+  2. 
+.         tokenize `years'
+  3.         local year "``index''"
+  4.         noi di "Year: `year'"
+  5.                 
+.         * Specify variables to keep from this dataset
+.         local tokeep
+  6.         foreach locals_list in `import_vars' {
+  7.                 tokenize ``locals_list''
+  8.                 if "``index''"!="XXX" local tokeep "`tokeep' ``index''"
+  9.         }
+ 10.         
+.         * Pre-2003
+.         if `year'<2003 {
+ 11.                 cd "$MortalityDataMOB/`year'"   
+ 12.                 qui do mort`year'.do
+ 13.                 
+.                 * Note: statersf is usually the NVS state code in these years
+> . But in these confidential files, it is in fact the stfips code
+.                 * Thare are some "00" codes; by comparing to public file, we 
+> deduced that these are all foreign residents (ie from Canada, Mexico, etc) 
+.                 destring statersf, replace
+ 14.                 ren statersf stfips
+ 15.                 drop if stfips==0
+ 16.                 assert inrange(stfips,1,56)
+ 17.                 merge m:1 stfips using "$Driving/data/fips/state_fips_code
+> s.dta", keepusing(abbr) nogenerate assert(match using) keep(match)
+ 18.                 ren stfips statersf
+ 19.         }
+ 20.         
+.         * Formatting change in 2003
+.         if `year'>=2003 {
+ 21.         
+.                 cd "$MortalityDataMOB/`year'"
+ 22.                 qui do mort`year'.do
+ 23.                 
+.                 * statersf changes to a two-letter abbreviation beginning in 
+> 2003
+.                 ren statersf abbr
+ 24.                 
+.                 * Drop foreign residents
+.                 drop if inlist(abbr,"ZZ","XX","YY")
+ 25.                 
+.                 * Drop territories
+.                 drop if inlist(abbr,"AS","FM","GU","MP","PR","PW","UM","VI") 
+>    
+ 26.                 
+.                 * Merge on stfips codes
+.                 merge m:1 abbr using "$Driving/data/fips/state_fips_codes.dta
+> ", keepusing(stfips) nogenerate assert(match using) keep(match)
+ 27.                 ren stfips statersf
+ 28.                                 
+.                 cap replace sex = "1" if sex=="M"
+ 29.                 cap replace sex = "2" if sex=="F"
+ 30. 
+.         }
+ 31.         
+.         keep `tokeep' abbr
+ 32.         gen year = `year'
+ 33.         label var year "Year of death"
+ 34.         
+.         * Rename vars and append onto main dataset
+.         foreach locals_list in `import_vars' {
+ 35.                 tokenize ``locals_list''
+ 36.                 if "``index''"!="XXX" ren ``index'' `locals_list'
+ 37.         }
+ 38.         
+.         ***
+.         * Clean age var, and keep only under age 30
+.         ***
+.         destring age ageunit, replace
+ 39.         assert !mi(age)
+ 40.         
+.         * ageunit
+.         * 1983-2002: 0=years less than 100; 1=years 100 or more; 2=Months; 3=
+> weeks; 4=Days; 5=Hours; 6=minutes; 9=Age not stated
+.         * 2003+:                            1=years;             2=Months;   
+>        4=Days; 5=Hours; 6=minutes; 9=Age not stated
+.         assert inlist(ageunit,0,1,2,3,4,5,6,9)        if year<2003
+ 41.         assert inlist(ageunit,1,2,4,5,6,9)            if year>=2003
+ 42.         
+.         assert inrange(age,1,100)                     if ageunit==0
+ 43.         assert inrange(age,0,11) | inlist(age,99,999) if ageunit==2
+ 44.         assert inrange(age,1,3)  | inlist(age,99,999) if ageunit==3
+ 45.         assert inrange(age,0,31) | inlist(age,99,999) if ageunit==4
+ 46.         assert inrange(age,0,23) | inlist(age,99,999) if ageunit==5
+ 47.         assert inrange(age,0,59) | inlist(age,99,999) if ageunit==6
+ 48.         assert inlist(age,99,999)                     if ageunit==9
+ 49.         
+.         * If ageunit=1 and year<2003, then this person is over 100 years old 
+> --> edit age variable accordingly
+.         assert inrange(age,0,33) if ageunit==1 & year<2003
+ 50.         replace age = age+100    if ageunit==1 & year<2003
+ 51.         
+.         * Drop infants and missing ages
+.         drop if inlist(ageunit,2,3,4,5,6,9)
+ 52.         drop if age==999
+ 53.         
+.         * Keep only people between ages 10 and 30
+.         assert inrange(age,1,133)
+ 54.         keep if inrange(age,10,30)
+ 55.         drop ageunit
+ 56.         
+.         ***
+.         * Append and save
+.         ***
+.         if `run_no'==1 append using "`tmp'"
+ 57.         compress
+ 58.         save "`tmp'", replace
+ 59.                 
+.         local run_no = 1
+ 60. }
+. 
+. * Label variables
+. label var mo_brth "Month of birth"
+. label var yr_brth "Year of birth"
+. label var abbr "State of residence postal abbreviation"
+. label var staters "State of residence fips code"
+. label var monthdth "Calendar month of death"
+. label var sex "Male=1 Female=2"
+. label var age "Age in years"
+. label var ucod "ICD code"
+. label var race "Race (white=1;nonwhite=2,3,..)"
+. 
+. * Save the data
+. compress                
+. save "$Driving/processed/intermediate/cdc_mortality8314_raw_ageunit.dta", rep
+> lace       
+. 
+. }
+
+. 
+. ***************************************************
+. ******* Fatality Analysis Reporting System ********
+. ***************************************************
+. if `fars'==1 {
+. 
+. * Read in the FARS data
+. local years     "1983  1984  1985  1986  1987  1988  1989  1990  1991  1992  
+> 1993  1994  1995  1996  1997  1998  1999  2000  2001  2002  2003  2004  2005 
+>  2006  2007  2008  2009  2010  2011  2012  2013  2014"
+. 
+. local run_no = 0
+. local num_surveys: word count `years'
+. 
+. ** Person data
+. qui forval index = 1/`num_surveys' {
+  2. 
+.         tokenize `years'
+  3.         local year "``index''"
+  4.         noi di "Year: `year'"
+  5.                 
+.         * Specify variables to keep from this dataset
+.         local tokeep "state age month per_typ st_case inj_sev"
+  6.         
+.         use "$FARS/person/`year'", clear        
+  7.         
+.         keep `tokeep'
+  8.         gen year = `year'
+  9.         label var year "Year of crash"
+ 10.         
+.         ***
+.         * Append and save
+.         ***
+.         if `run_no'==1 append using "`tmp'"
+ 11.         compress
+ 12.         save "`tmp'", replace
+ 13.                 
+.         local run_no = 1
+ 14.         
+.         ren state staters
+ 15. }
+. 
+. * Save the data
+. compress                
+. save "$Driving/processed/intermediate/fars_raw_data8314_person.dta", replace
+. 
+. }
+
+. 
+. ***************************************************
+. ******** Federal Highway Administration ***********
+. ***************************************************
+. if `fhwa'==1 {
+. 
+. * Licensed driver counts by age from FHWA
+. import excel "$Driving/data/fhwa/licensed_drivers_1964-2014_ages16-19.xlsx", 
+> firstrow clear
+(5 vars, 51 obs)
+. 
+. * Drop unnecessary years to save space (keep only 1983-2014)
+. keep if inrange(year, 1983, 2014)
+(19 observations deleted)
+. 
+. * Label variables
+. label var year "Year"
+. label var total_16 "Drivers aged 16"
+. label var total_17 "Drivers aged 17"
+. label var total_18 "Drivers aged 18"
+. label var total_19 "Drivers aged 19"
+. 
+. * Save the data
+. compress                
+  (0 bytes saved)
+. save "$Driving/processed/intermediate/licensed_drivers_1983to2014.dta", repla
+> ce
+file ./processed/intermediate/licensed_drivers_1983to2014.dta saved
+. 
+. }
+
+. 
+. 
+. ** EOF
+. 
+end of do-file
+
+. do "$Driving/scripts/2_clean_data.do"
+
+. ************
+. * SCRIPT: 2_clean_data.do
+. * PURPOSE: Cleans the multiple cause of death and MDA law datasets
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "$Driving/scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. assert !mi("$Driving")
+
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. 
+. * Set the flag equal to 1 to run that analysis, and equal to 0 otherwise
+. * Note: mortality code is disabled because the raw data are not included in t
+> his replication package
+. local mortality 0
+
+. local mdalaw8314 1
+
+. 
+. ************************************************
+. *******  Multiple Cause-of-Death Data   ********
+. ************************************************
+. if `mortality'==1 {
+. 
+. * Main mortality data
+. use "$Driving/processed/intermediate/cdc_mortality8314_raw_ageunit.dta", clea
+> r
+. 
+. ***
+. * Sex (Male=1 Female=2)
+. ***
+. destring sex, replace
+. assert inlist(sex,1,2)
+. gen male = sex==1
+. drop sex
+. 
+. ***
+. * Race - code as white/nonwhite
+. ***
+. * Pre-2003 codes (vary by year somewhat for some races): 00 = Other Asian 01=
+> white 02=black 03=Native American 04-07=Asian 08=Filipino 18=Asian Indian 28=
+> Korean 38=Samoan 48=Vietnamese 58=Guamanian 68=Other Asian 78=Combined Asian
+. * 2003+ codes: 01=White 02=Black ...
+. destring race, replace
+. assert !mi(race)
+. replace race=2 if race!=1
+. gen white = race==1
+. drop race
+. 
+. ***
+. * Month of death
+. ***
+. destring monthdth, replace
+. assert inrange(monthdth,1,12)
+. 
+. ***
+. * State of residence
+. ***
+. * Only US residents are included in sample
+. assert inrange(staters,1,56)
+. 
+. ***
+. * Age - has already been restricted to between 10 and 30
+. ***
+. assert inrange(age,10,30)
+. 
+. ***
+. * Month of birth
+. ***
+. * 99=unknown month of birth
+. drop if inlist(mo_brth,99,.)
+. assert inrange(mo_brth,1,12)
+. 
+. ***
+. * Year of birth, construct age in months
+. ***
+. * Drop unknown years of birth
+. drop if inlist(yr_brth,9999,.)
+. 
+. * Prior to 1989, year of birth was recorded with two digits. Everyone in this
+>  sample is age<30, so in theory all these birthyears should be after 1900.
+. assert inrange(yr_brth,0,99) if year<1989
+. replace yr_brth = 1900+yr_brth if year<1989
+. 
+. gen agemo = ym(year,monthdth) - ym(yr_brth, mo_brth)
+. label var agemo "Age in months"
+. 
+. * In theory agemo and age shouldn't differ by more than one integer year
+. * We have discrepancies for about 2,800 obs (0.14% of the sample) when we loo
+> k at ages 10-30 --> drop those discrepancies, which occur predominantly in th
+> e older years
+. count if abs(floor(agemo/12) - age)>1
+. assert r(N)/_N<0.0014
+. tab year if abs(floor(agemo/12) - age)>1
+. drop if abs(floor(agemo/12) - age)>1
+. 
+. *****
+. ** Define causes of death
+. *****
+. ** Note: ICD-9 codes are used for 1979-1998, and ICD-10 codes for 1999-2014
+. ** Categories: alcohol, drug, MVA, homicide, suicide, and accident based on I
+> CD codes 
+. gen alcohol_a=0
+. gen drug_a=0
+. gen MVA_a=0
+. gen homicide_a=0
+. gen suicide_a=0
+. gen acct_a=0
+. gen external_a=0
+. 
+. ** 1979-1998
+. replace alcohol_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,3), 
+> "291","303")|inlist(substr(ucod,1,4), "3050","3575","4255","5353","5710","571
+> 1","5712","5713","7903")) 
+. replace drug_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,3), "29
+> 2","304"))
+. replace drug_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,4), "33
+> 21","3576","3051","3052","3053","3054"))
+. replace drug_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,4), "30
+> 55","3056","3057","3058","3059"))
+. replace MVA_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,2), "81"
+> )|inlist(substr(ucod,1,3), "820","821","822","823","824","825"))
+. replace homicide_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,2),
+>  "96"))
+. replace suicide_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,2), 
+> "95", "98"))
+. replace acct_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,3), "82
+> 6","827","828","829"))
+. replace acct_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,2), "80
+> ", "83", "84", "85", "86", "88"))
+. replace acct_a=1 if inrange(year, 1979, 1998) & (inlist(substr(ucod,1,2), "89
+> ", "90", "91", "92"))
+. 
+. * First three digits of the ICD codes used in defining external causes for 19
+> 79-1998
+. gen ucod2=substr(ucod, 1, 3) if inrange(year, 1979, 1998)
+. destring ucod2, replace
+. replace external_a=1 if inrange(year, 1979, 1998) & (ucod2 >= 800|alcohol_a =
+> =1|drug_a ==1|suicide_a ==1|MVA_a ==1|homicide_a ==1|acct_a==1) 
+. 
+. ** 1999-2014
+. replace alcohol_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,3), 
+> "F10","K70","T51")|inlist(substr(ucod,1,4), "E244","G312","G621","G721","I426
+> ","K292","K852","K860","R780"))  
+. replace drug_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,3), "F1
+> 1","F12","F13","F14","F15","F16","F17"))
+. replace drug_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,3), "F1
+> 8","F19","F55","T40","T41","T43"))
+. replace MVA_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,2), "V0"
+> ,"V1","V2","V3","V4","V5","V6","V7","V8")) & (!inlist(substr(ucod,1,3), "V05"
+> ,"V15")) & (!inlist(substr(ucod,1,4), "V806","V812","V813","V814","V815","V81
+> 6","V817","V818","V819"))
+. replace homicide_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,3),
+>  "X85","X86","X87","X88","X89")|inlist(substr(ucod,1,2),"X9","Y0"))
+. replace suicide_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,2), 
+> "X6","X7","Y1","Y2")|inlist(substr(ucod,1,3), "X80","X81","X82","X83","X84")|
+> inlist(substr(ucod,1,3), "Y30","Y31","Y32","Y33","Y34")|inlist(substr(ucod,1,
+> 4), "Y870"))
+. replace acct_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,2), "V9
+> ","X0","X1","X2","X3","X4","X5")|inlist(substr(ucod,1,1), "W")|inlist(substr(
+> ucod,1,3), "V05","V15")|inlist(substr(ucod,1,4), "V806","V812","V813","V814",
+> "V815","V816","V817","V818","V819"))
+. replace external_a=1 if inrange(year, 1999, 2014) & (inlist(substr(ucod,1,1),
+>  "V","W","X","Y","Z")|alcohol_a ==1|drug_a ==1|suicide_a ==1|MVA_a ==1|homici
+> de_a ==1|acct_a==1) 
+. 
+. * Mutually exclusive cause of death category
+. gen cod_homicide=(homicide_a==1)
+. gen cod_suicide=(homicide_a==0 & suicide_a ==1)
+. gen cod_MVA=(homicide_a==0 & suicide_a==0 & MVA_a==1) 
+. gen cod_acct=(homicide_a==0 & suicide_a==0 & MVA_a==0 & acct_a==1)
+. gen cod_extother=(homicide_a==0 & suicide_a==0 & acct_a==0 & MVA_a==0 & exter
+> nal_a==1)
+. gen cod_external=external_a
+. gen cod_any=1
+. 
+. ** Mutually exclusive subcategories within suicide
+. * Poisoning
+. gen cod_suicide_poisoning=0
+. replace cod_suicide_poisoning=1 if inrange(year, 1979, 1998) & (inlist(substr
+> (ucod,1,3), "950", "951", "952", "980", "981", "982"))
+. replace cod_suicide_poisoning=1 if inrange(year, 1999, 2014) & (inlist(substr
+> (ucod,1,2), "X6", "Y1"))
+. 
+. * Substances
+. gen cod_suicide_poisoning_subst=0
+. replace cod_suicide_poisoning_subst=1 if inrange(year, 1979, 1998) & (inlist(
+> substr(ucod,1,3), "950", "980"))
+. replace cod_suicide_poisoning_subst=1 if inrange(year, 1999, 2014) & (inlist(
+> substr(ucod,1,3), "X60", "X61", "X62", "X63", "X64", "X65", "X68", "X69"))
+. replace cod_suicide_poisoning_subst=1 if inrange(year, 1999, 2014) & (inlist(
+> substr(ucod,1,3), "Y10", "Y11", "Y12", "Y13", "Y14", "Y15", "Y18", "Y19"))
+. 
+. * Gases
+. gen cod_suicide_poisoning_gas=0
+. replace cod_suicide_poisoning_gas=1 if inrange(year, 1979, 1998) & (inlist(su
+> bstr(ucod,1,3), "951", "952", "981", "982"))
+. replace cod_suicide_poisoning_gas=1 if inrange(year, 1999, 2014) & (inlist(su
+> bstr(ucod,1,3), "X66", "X67", "Y16", "Y17"))
+. 
+. * Firearms
+. gen cod_suicide_firearms=0
+. replace cod_suicide_firearms=1 if inrange(year, 1979, 1998) & (inlist(substr(
+> ucod,1,3), "955", "985"))
+. replace cod_suicide_firearms=1 if inrange(year, 1999, 2014) & (inlist(substr(
+> ucod,1,3), "X72", "X73", "X74", "X75", "Y22", "Y23", "Y24"))
+. 
+. * Subcategories within other suicides
+. * Drowning
+. gen cod_suicide_drowning=0
+. replace cod_suicide_drowning=1 if inrange(year, 1979, 1998) & (inlist(substr(
+> ucod,1,3), "954", "984"))
+. replace cod_suicide_drowning=1 if inrange(year, 1999, 2014) & (inlist(substr(
+> ucod,1,3), "X71", "Y21"))
+. 
+. ** Mutually exclusive subcategories within accidental deaths
+. * Poisoning
+. gen cod_acct_poisoning=0
+. replace cod_acct_poisoning=1 if inrange(year, 1979, 1998) & (inlist(substr(uc
+> od,1,2), "85", "86"))
+. replace cod_acct_poisoning=1 if inrange(year, 1999, 2014) & (inlist(substr(uc
+> od,1,2), "X4"))
+. 
+. * Poisoning substances
+. gen cod_acct_poisoning_subst=0
+. replace cod_acct_poisoning_subst=1 if inrange(year, 1979, 1998) & (inlist(sub
+> str(ucod,1,2), "85"))|(inlist(substr(ucod,1,3), "860", "861", "862", "863", "
+> 864", "865", "866"))
+. replace cod_acct_poisoning_subst=1 if inrange(year, 1999, 2014) & (inlist(sub
+> str(ucod,1,3), "X40", "X41", "X42", "X43", "X44", "X45", "X48", "X49"))
+. 
+. * Poisoning gases
+. gen cod_acct_poisoning_gas=0
+. replace cod_acct_poisoning_gas=1 if inrange(year, 1979, 1998) & (inlist(subst
+> r(ucod,1,3), "867", "868", "869"))
+. replace cod_acct_poisoning_gas=1 if inrange(year, 1999, 2014) & (inlist(subst
+> r(ucod,1,3), "X46", "X47"))
+. 
+. * Firearms
+. gen cod_acct_firearms=0
+. replace cod_acct_firearms=1 if inrange(year, 1979, 1998) & (inlist(substr(uco
+> d,1,3), "922"))
+. replace cod_acct_firearms=1 if inrange(year, 1999, 2014) & (inlist(substr(uco
+> d,1,3), "W32", "W33", "W34"))
+. 
+. ** Subcategories within other accidental
+. * Drowning
+. gen cod_acct_drowning=0
+. replace cod_acct_drowning=1 if inrange(year, 1979, 1998) & (inlist(substr(uco
+> d,1,3), "910"))
+. replace cod_acct_drowning=1 if inrange(year, 1999, 2014) & (inlist(substr(uco
+> d,1,3), "W65", "W66", "W67", "W68", "W69", "W70", "W73", "W74"))
+. 
+. * Define "internal cause" and "other" categories as residuals
+. gen cod_internal= cod_any - cod_external
+. gen cod_suicide_other= cod_suicide - (cod_suicide_poisoning + cod_suicide_fir
+> earms + cod_suicide_drowning)
+. gen cod_acct_other= cod_acct - (cod_acct_poisoning + cod_acct_firearms + cod_
+> acct_drowning)
+. 
+. * Suicide + accident subcategories
+. gen cod_sa=cod_suicide+cod_acct
+. gen cod_sa_firearms=cod_suicide_firearms+cod_acct_firearms
+. gen cod_sa_poisoning=cod_suicide_poisoning+cod_acct_poisoning
+. gen cod_sa_poisoning_subst=cod_suicide_poisoning_subst+cod_acct_poisoning_sub
+> st
+. gen cod_sa_poisoning_gas=cod_suicide_poisoning_gas+cod_acct_poisoning_gas 
+. gen cod_sa_drowning=cod_suicide_drowning+cod_acct_drowning
+. gen cod_sa_other=cod_suicide_other+cod_acct_other
+.         
+. collapse (sum) cod*, by(staters abbr year monthdth agemo male white) fast
+. 
+. * Verify adding up constraints
+. assert cod_any == cod_internal + cod_external
+. assert cod_external == cod_MVA + cod_suicide + cod_homicide + cod_acct + cod_
+> extother
+. assert cod_suicide == cod_suicide_firearms + cod_suicide_poisoning + cod_suic
+> ide_drowning + cod_suicide_other
+. assert cod_suicide_poisoning == cod_suicide_poisoning_subst + cod_suicide_poi
+> soning_gas
+. assert cod_acct == cod_acct_firearms + cod_acct_poisoning + cod_acct_drowning
+>  + cod_acct_other 
+. assert cod_acct_poisoning == cod_acct_poisoning_subst + cod_acct_poisoning_ga
+> s
+. 
+. order year monthdth abbr staters male white agemo cod_any
+. sort  year monthdth abbr staters male white agemo
+. 
+. * Label variables
+. label var cod_any "total deaths"
+. label var cod_MVA "MVA deaths"
+. label var cod_homicide "homicides"
+. label var cod_suicide "suicides"
+. label var cod_acct "accidents"
+. label var cod_sa "suicide and accident"
+. label var cod_extother "other external deaths"
+. label var cod_external "external deaths"
+. label var cod_suicide_firearms "suicides - firearms"
+. label var cod_suicide_poisoning "suicides - poisoning"
+. label var cod_suicide_poisoning_gas "suicides - gases"
+. label var cod_suicide_poisoning_subst "suicides - substances"
+. label var cod_suicide_drowning "suicides - drowning"
+. label var cod_suicide_other "suicides - other remainder"
+. label var cod_acct_firearms "accidental - firearms"
+. label var cod_acct_poisoning "accidental - poisoning"
+. label var cod_acct_poisoning_gas "accidental - gases"
+. label var cod_acct_poisoning_subst "accidental - substances"
+. label var cod_acct_drowning "accidental - drowning"
+. label var cod_acct_other "accidental - other remainder"
+. label var cod_sa_firearms "suicide and accident - firearms"
+. label var cod_sa_poisoning "suicide and accident - poisoning"
+. label var cod_sa_poisoning_gas "suicide and accident - gases"
+. label var cod_sa_poisoning_subst "suicide and accident - substances"
+. label var cod_sa_drowning "suicide and accident - drowning"
+. label var cod_sa_other "suicide and accident - other remainder"
+. label var cod_internal "internal deaths"
+. label var male "Gender male indicator"
+. label var white "Race white indicator"
+. 
+. * Save the data
+. compress
+. save "$Driving/processed/intermediate/cdc_mortality_data83to14st.dta", replac
+> e
+. 
+. }
+
+. 
+. ******************************************************
+. ***** Minimum driving age laws by state, month *******
+. ******************************************************
+. if `mdalaw8314'==1 {
+. 
+. * Data on minimum driving age laws for restricted license
+. clear
+. import excel "$Driving/data/mda/mda_laws_monthly_1983_2014.xlsx", firstrow
+(11 vars, 51 obs)
+. 
+. ** Minimum driving ages in months
+. foreach y in "1" "2" "3" "4" {
+  2.         
+.         * Recode minimum driving ages (e.g., change 16.01 to 193 months)
+.         gen minmda`y'=mda`y'
+  3.         
+.         * Change mda`y' to strings
+.         tostring mda`y', replace
+  4.         
+.         replace minmda`y'=minmda`y'*12
+  5.         replace minmda`y'=16*12+1 if mda`y'=="16.01"
+  6.         replace minmda`y'=16*12+3 if mda`y'=="16.03"
+  7.         replace minmda`y'=16*12+4 if mda`y'=="16.04"    
+  8.         replace minmda`y'=16*12+6 if mda`y'=="16.06"
+  9. 
+.         replace minmda`y'=15*12+3 if mda`y'=="15.03"    
+ 10.         replace minmda`y'=15*12+6 if mda`y'=="15.06"
+ 11.         replace minmda`y'=15*12+9 if mda`y'=="15.09"
+ 12. 
+.         replace minmda`y'=14*12+3 if mda`y'=="14.03"    
+ 13.         replace minmda`y'=14*12+6 if mda`y'=="14.06"
+ 14.                         
+. }
+mda1 was double now str5
+(51 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(30 missing values generated)
+mda2 was double now str5
+(21 real changes made)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(6 real changes made)
+(2 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(44 missing values generated)
+mda3 was double now str5
+(7 real changes made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(49 missing values generated)
+mda4 was double now str5
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+. 
+. ** Create full set of state, year, and month
+. gen start = date("1983-01-15", "YMD")
+. gen end = date("2015-01-15", "YMD")
+. 
+. * State
+. gen start_m = mofd(start)
+. gen ep_end_m = mofd(end)
+. 
+. gen epend_m=1
+. stset ep_end_m, failure(epend_m) origin(start_m) id(staters)
+
+Survival-time data settings
+
+           ID variable: staters
+         Failure event: epend_m!=0 & epend_m<.
+Observed time interval: (ep_end_m[_n-1], ep_end_m]
+     Exit on or before: failure
+     Time for analysis: (time-origin)
+                Origin: time start_m
+
+--------------------------------------------------------------------------
+         51  total observations
+          0  exclusions
+--------------------------------------------------------------------------
+         51  observations remaining, representing
+         51  subjects
+         51  failures in single-failure-per-subject data
+     19,584  total analysis time at risk and under observation
+                                                At risk from t =         0
+                                     Earliest observed entry t =         0
+                                          Last observed exit t =       384
+. stsplit month, every(1)
+(19,533 observations (episodes) created)
+. 
+. * Year
+. gen year=ceil((month+1)/12)+1982
+. replace month=month+1
+(19,584 real changes made)
+. 
+. * Month
+. forvalues i=1/32 {
+  2.         replace month=month-12 if month>=13
+  3. }
+(18,972 real changes made)
+(18,360 real changes made)
+(17,748 real changes made)
+(17,136 real changes made)
+(16,524 real changes made)
+(15,912 real changes made)
+(15,300 real changes made)
+(14,688 real changes made)
+(14,076 real changes made)
+(13,464 real changes made)
+(12,852 real changes made)
+(12,240 real changes made)
+(11,628 real changes made)
+(11,016 real changes made)
+(10,404 real changes made)
+(9,792 real changes made)
+(9,180 real changes made)
+(8,568 real changes made)
+(7,956 real changes made)
+(7,344 real changes made)
+(6,732 real changes made)
+(6,120 real changes made)
+(5,508 real changes made)
+(4,896 real changes made)
+(4,284 real changes made)
+(3,672 real changes made)
+(3,060 real changes made)
+(2,448 real changes made)
+(1,836 real changes made)
+(1,224 real changes made)
+(612 real changes made)
+(0 real changes made)
+. 
+. ** Minimum driving age by state, year, and month
+. ** Apply MDA laws by month & MDA changes, using effective dates of the laws
+. gen mda_months=minmda1
+. replace mda_months=minmda2 if eff_date_u2!=. & year>yofd(eff_date_u2)
+(4,116 real changes made)
+. replace mda_months=minmda2 if eff_date_u2!=. & year==yofd(eff_date_u2) & mont
+> h>month(eff_date_u2)
+(141 real changes made)
+. replace mda_months=minmda2 if eff_date_u2!=. & year==yofd(eff_date_u2) & mont
+> h==month(eff_date_u2) & day(eff_date_u2)<=15
+(20 real changes made)
+. 
+. replace mda_months=minmda3 if eff_date_u3!=. & year>yofd(eff_date_u3)
+(780 real changes made)
+. replace mda_months=minmda3 if eff_date_u3!=. & year==yofd(eff_date_u3) & mont
+> h>month(eff_date_u3)
+(33 real changes made)
+. replace mda_months=minmda3 if eff_date_u3!=. & year==yofd(eff_date_u3) & mont
+> h==month(eff_date_u3) & day(eff_date_u3)<=15
+(5 real changes made)
+. 
+. replace mda_months=minmda4 if eff_date_u4!=. & year>yofd(eff_date_u4)
+(120 real changes made)
+. replace mda_months=minmda4 if eff_date_u4!=. & year==yofd(eff_date_u4) & mont
+> h>month(eff_date_u4)
+(7 real changes made)
+. replace mda_months=minmda4 if eff_date_u4!=. & year==yofd(eff_date_u4) & mont
+> h==month(eff_date_u4) & day(eff_date_u4)<=15
+(2 real changes made)
+. 
+. ren month monthdth
+. 
+. * Keep relevant variables
+. keep staters year monthdth mda_months
+. sort staters year monthdth
+. 
+. * Label variables
+. label variable monthdth "Month of death"
+. label variable year "Year of death"
+. label variable staters "State fips code"
+. label variable mda_months "MDA in months"
+. 
+. * Save the data
+. compress
+  variable monthdth was int now byte
+  variable year was float now int
+  variable mda_months was float now int
+  (97,920 bytes saved)
+. save "$Driving/processed/intermediate/mdalaws_monthly8314.dta", replace
+file ./processed/intermediate/mdalaws_monthly8314.dta saved
+. 
+. }
+
+. 
+. 
+. ** EOF
+. 
+end of do-file
+
+. do "$Driving/scripts/3_combine_data.do"
+
+. ************
+. * SCRIPT: 3_combine_data.do
+. * PURPOSE: Create the final datasets used in the analyses
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "$Driving/scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. assert !mi("$Driving")
+
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile tmp seer_data
+
+. 
+. * Set the flag equal to 1 to run that analysis, and equal to 0 otherwise
+. * Note: mortality and FARS codes are disabled because the raw data are not in
+> cluded in this replication package
+. local mortality_state 0
+
+. local fars 0
+
+. local fhwa 1
+
+. 
+. *************************************************************************
+. ****** State-level (and national-level) mortality data ages 10-21 *******
+. *************************************************************************
+. if `mortality_state'==1 {
+. 
+. ***
+. ** Prep the SEER data and the mortality data by limiting to ages of interest
+. ***
+. use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear 
+. 
+. * Keep relevant ages: 10-21 years
+. keep if inrange(age,10,21)
+. assert !mi(pop)
+. 
+. save "`seer_data'", replace
+. 
+. use "$Driving/processed/intermediate/cdc_mortality_data83to14st.dta", clear
+. 
+. * Keep relevant ages: 10-21 years
+. keep if inrange(agemo,10*12,22*12-1)
+. assert inrange(floor(agemo/12),10,21)
+. 
+. save `tmp', replace
+. 
+. ***
+. * Generate full set of state, year, month of death, agemo, gender, and race i
+> nteractions
+. * This is necessary to ensure we obtain an accurate estimate of the total pop
+> ulation when we later merge with the SEER data
+. * The additional observations will account for bins with 0 deaths (but nonzer
+> o population)
+. ***
+. duplicates drop staters, force
+. keep staters 
+. 
+. * age in months (ages 10-21)
+. set obs `=22*12-1 - 10*12 + 1'
+. gen agemo = 10*12-1 + _n
+. assert inrange(floor(agemo/12),10,21)
+. 
+. gen male      = _n-1 in 1/2
+. gen white     = _n-1 in 1/3
+. gen monthdth  = _n   in 1/12
+. 
+. compress
+. 
+. fillin monthdth staters male white agemo
+. drop _fillin
+. 
+. * Drop any missing observations from the fillin
+. unab vars: *
+. foreach v of local vars {
+  2.         drop if mi(`v')
+  3. }
+. compress
+. 
+. * Duplicate to create copies for years 1983-2014
+. tempfile t
+. save "`t'", replace
+. gen int year = 1983
+. forval yr = 1984/2014 {
+  2.         append using "`t'"
+  3.         replace year = `yr' if mi(year)
+  4. }
+. 
+. * Merge on mortality cause-of-death data
+. merge 1:1 year monthdth staters male white agemo using "`tmp'", assert(master
+>  match) nogenerate
+. 
+. foreach v of varlist cod* {
+  2.         replace `v' = 0 if mi(`v')
+  3. }
+. 
+. * Age in years (floor, not rounded)
+. gen int age = floor(agemo/12)
+. 
+. * Merge on SEER population data, and drop observations that have zero populat
+> ion and 0 deaths
+. merge m:1 year staters male white age using "`seer_data'", assert(master matc
+> h)
+. drop if _merge==1 & cod_any==0
+. drop _merge
+. 
+. * Merge on the MDA law data
+. merge m:1 staters year monthdth using "$Driving/processed/intermediate/mdalaw
+> s_monthly8314.dta", assert(match) nogenerate
+. 
+. * The dataset is at the year-month level, but SEER data are annual -> Divide 
+> the population by 12
+. replace pop=pop/12
+. 
+. * Age in months relative to MDA
+. gen agemo_mda = agemo - mda_months
+. 
+. * Label variables
+. label var year "Year"
+. label var agemo "Age in months"
+. label var agemo_mda "Age (in months) since MDA"
+. label var mda_months "MDA in months"
+. label var male "Gender male indicator"
+. label var white "Race white indicator"
+. 
+. * Identify month of birth (1-12)
+. gen brthdt = ym(year,monthdth) - agemo
+. gen mo_brth = month(brthdt)
+. assert inrange(mo_brth,1,12)
+. label var mo_brth "Month of birth (1-12)"
+. 
+. * Save the data
+. drop age monthdth brthdt
+. compress
+. order year staters male white agemo agemo_mda mo_brth pop cod_any
+. sort  year staters male white agemo agemo_mda
+. 
+. * State-level file (larger) is used for heterogeneity/robustness analysis onl
+> y: drop causes of death that we don't use in that analysis
+. preserve
+.         keep year-mo_brth pop cod_any cod_internal cod_external cod_MVA cod_s
+> a cod_MVA cod_sa_poisoning cod_sa_poisoning_subst cod_sa_poisoning_gas cod_ex
+> tother cod_homicide cod_sa_other cod_sa_drowning cod_sa_firearms mda_months
+.         
+.         collapse (sum) cod* pop, by(year-mo_brth mda_months) fast
+.         compress
+.         save "$Driving/processed/mortality_mda_combined8314st.dta", replace
+. restore, preserve
+. 
+.         * National-level file (small) - main one used in analysis
+.         collapse (sum) cod* pop, by(agemo_mda male) fast
+.         compress
+.         save "$Driving/processed/mortality_mda_combined8314nt.dta", replace
+. }
+
+. 
+. ****************************************
+. ************** FARS data ***************
+. ****************************************
+. if `fars'==1 {
+. 
+. * Combine FARS person data with MDA law data
+. use "$Driving/processed/intermediate/fars_raw_data8314_person.dta", clear
+. ren month monthdth
+. merge m:1 staters year monthdth using "$Driving/processed/intermediate/mdalaw
+> s_monthly8314.dta", assert(match using) keep(match) nogenerate
+. drop monthdth
+. 
+. * Label variables
+. label var staters "State fips code"
+. label var st_case "Consecutive number"
+. label var age "Age"
+. label var per_typ "Person type"
+. label var inj_sev "Injury severity"
+. 
+. * Save the data
+. save "$Driving/processed/fars_8314.dta", replace
+. }
+
+. 
+. ****************************************
+. ************** FHWA  data **************
+. ****************************************
+. if `fhwa'==1 {
+. 
+. * SEER population
+. use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear
+. keep if inrange(age, 16, 19)
+(110,976 observations deleted)
+.         
+. * Create population variable for each age group
+. gen pop_16=pop
+. replace pop_16=0 if age!=16
+(19,584 real changes made)
+. gen pop_17=pop
+. replace pop_17=0 if age!=17
+(19,584 real changes made)
+. gen pop_18=pop
+. replace pop_18=0 if age!=18
+(19,584 real changes made)
+. gen pop_19=pop
+. replace pop_19=0 if age!=19
+(19,584 real changes made)
+.                 
+. local vars "pop_16 pop_17 pop_18 pop_19"
+. collapse (sum) `vars', by(year) fast
+.         
+. keep year pop_16 pop_17 pop_18 pop_19
+. 
+. * Merge FHWA data
+. merge 1:1 year using "$Driving/processed/intermediate/licensed_drivers_1983to
+> 2014.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                                32  (_merge==3)
+    -----------------------------------------
+. keep if _merge==3
+(0 observations deleted)
+. drop _merge
+. 
+. * Label variables
+. label var pop_16 "Population aged 16"
+. label var pop_17 "Population aged 17"
+. label var pop_18 "Population aged 18"
+. label var pop_19 "Population aged 19"
+.         
+. * Save the data
+. save "$Driving/processed/fhwa_8314.dta", replace
+file ./processed/fhwa_8314.dta saved
+. 
+. }
+
+. 
+. 
+. ** EOF
+. 
+end of do-file
+
+. do "$Driving/scripts/4_analysis.do"
+
+. ************
+. * SCRIPT: 4_analysis.do
+. * PURPOSE: Estimate RD regressions
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "$Driving/scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. assert !mi("$Driving")
+
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile results male_female
+
+. local regsave_settings "tstat pval ci cmdline"
+
+. 
+. * Set the flag equal to 1 to run that analysis, and equal to 0 otherwise
+. * Note: mortality analysis cannot be run without first obtaining access to th
+> e confidential vital statistics data
+. * Also requires access to the confidential data for Add Health
+. local rd_addhealth 1
+
+. local rd_mortality 1
+
+. local rd_mortality_yearbins 1
+
+. local rd_mortality_suicide_acct 1
+
+. local rd_mortality_robustness 1
+
+. local rd_mortality_placebo 1
+
+. local adjustedp 1
+
+. 
+. ***
+. * Formatting settings for graphs
+. ***
+. * Titles and label formatting
+. local xtitlesize "size(medlarge)"
+
+. local ytitlesize "size(medlarge)"
+
+. local xlabsize "labsize(medium)"
+
+. local ylabsize "labsize(medium)"
+
+.         
+. * Marker and line fit formatting
+. local mformat "msym(oh) mcol(red) msize(medlarge)"
+
+. local mformat2 "msym(sh) mcol(blue) msize(medlarge)"
+
+. local mformat3 "msym(x) mcol(green) msize(medlarge)"
+
+. local lformat "clcolor(black) lwidth(medthick)"
+
+. local lformat2 "clcolor(black) lwidth(medthick) lpattern(dash)"
+
+. local legendsize "size(medlarge)"
+
+. 
+. ***
+. * Standardized preperation code for the RD regressions
+. ***
+. cap program drop prep_data_rd
+
+. program define prep_data_rd
+  1. 
+.         syntax , bandwidth(integer)
+  2.         
+.         isid agemo_mda
+  3.         
+.         * Death rates per 100,000 person-years (divide population by 12 age-m
+> onths)
+.         * Account for the fact that there are 12 ages in months in a single c
+> alendar month (e.g. 16y0m, 16y1m,.., 16y11m in January 1998) 
+.         * Note: all death rate vars begin with "cod"
+.         cap unab death_rate_vars : cod*
+  4.         qui foreach  y of local death_rate_vars {
+  5.                 replace `y'=100000*`y'/(pop/12)
+  6.                 label var `y' "Deaths per 100,000"
+  7.         }       
+  8.         
+.         * Above MDA indicator
+.         gen post=(agemo_mda>=0)
+  9.         
+.         * Construct weights for triangular kernel with bandwidth of 13
+.         local bw = `bandwidth'
+ 10.         gen tri_wgt = 0
+ 11.         qui forval x = 0/`=`bw'-1' {
+ 12.                 replace tri_wgt=(`bw'-`x')/`bw' if agemo_mda==`x'
+ 13.         }
+ 14.         qui forval x = 2/`bw' {
+ 15.                 replace tri_wgt=(`bw'-`x'+1)/`bw' if agemo_mda==-(`x'-1)
+ 16.         }
+ 17.         
+.         * Indicator for first month of driving eligibility
+.         gen firstmonth=(agemo_mda==0)
+ 18. end
+
+. 
+. *****************************************
+. * RD estimates for Add Health outcomes 
+. *****************************************
+. if `rd_addhealth'==1 {
+. 
+.         *****
+.         ** Heterogeneity regressions (including the main regression)
+.         *****
+. 
+.         local replace replace   
+.         local run_male_female = 0
+.         qui foreach scenario in "All" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "$Driving/results/intermediate/addhealth_rd.dta", replace
+file ./results/intermediate/addhealth_rd.dta saved
+.         
+.         * Output figure for driver's license and vehicle miles driven (male/f
+> emale on same plot)
+.         use "`male_female'", clear
+.         
+.         * Driver's license
+.         graph twoway (scatter DriverLicense_Male agemo_mda, `mformat') (line 
+> DriverLicense_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line DriverL
+> icense_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter DriverLicense_Female agemo_mda, `mf
+> ormat2') (line DriverLicense_hat_Female agemo_mda if agemo_mda <= -1, `lforma
+> t2') (line DriverLicense_hat_Female agemo_mda if agemo_mda > 0, `lformat2') /
+> //       
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(, `ylabsi
+> ze') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "" 4 "Femal
+> es" 5 "") `legendsize')
+.         graph export "$Driving/results/figures/rd_license_male_female.pdf", a
+> s(pdf) replace
+file ./results/figures/rd_license_male_female.pdf saved as PDF format
+. 
+.         * Vehicle miles driven
+.         format *Male %12.0fc
+.         graph twoway (scatter VehicleMiles_150_Male agemo_mda, `mformat') (li
+> ne VehicleMiles_150_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line V
+> ehicleMiles_150_hat_Male agemo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter VehicleMiles_150_Female agemo_mda, 
+> `mformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda <= -1, `
+> lformat2') (line VehicleMiles_150_hat_Female agemo_mda if agemo_mda > 0, `lfo
+> rmat2') ///      
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("", `ytitlesize') xlabel(-12(2)12, `xlabsize') ylabel(0(500)250
+> 0, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Males" 2 "
+> " 4 "Females" 5 "") `legendsize')
+.         graph export "$Driving/results/figures/rd_vmd150_male_female.pdf", as
+> (pdf) replace              
+file ./results/figures/rd_vmd150_male_female.pdf saved as PDF format
+. }
+
+. 
+. ********************************
+. * Main RD mortality estimates
+. ********************************
+. if `rd_mortality'==1 {
+.         
+.         *****
+.         ** Heterogeneity regressions (including the main regression)
+.         *****
+.         
+.         local replace replace
+.         local run_male_female = 0
+.         qui foreach scenario in "All" "mda192" "mda_not192" "mda192_Female" "
+> mda_not192_Female" "mda192_Male" "mda_not192_Male" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "$Driving/results/intermediate/mortality_rd.dta", replace
+file ./results/intermediate/mortality_rd.dta saved
+.         
+.         * Output main figure for all causes and MVA (male/female on same plot
+> )
+.         use "`male_female'", clear
+.         
+.         * All causes
+.         graph twoway (scatter cod_any_Male agemo_mda, `mformat') (line cod_an
+> y_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line cod_any_hat_Male ag
+> emo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter cod_any_Female agemo_mda, `mformat2
+> ') (line cod_any_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line c
+> od_any_hat_Female agemo_mda if agemo_mda > 0, `lformat2') ///
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize'
+> ) ylabel(20(15)80, `ylabsize') graphregion(fcolor(white)) legend(cols(4) orde
+> r(1 "Males" 2 "" 4 "Females" 5 "") `legendsize')
+.         graph export "$Driving/results/figures/rd_any_male_female.pdf", as(pd
+> f) replace
+file ./results/figures/rd_any_male_female.pdf saved as PDF format
+.         
+.         * MVA
+.         graph twoway (scatter cod_MVA_Male agemo_mda, `mformat') (line cod_MV
+> A_hat_Male agemo_mda if agemo_mda <= -1, `lformat') (line cod_MVA_hat_Male ag
+> emo_mda if agemo_mda > 0, `lformat')  ///
+>                                  (scatter cod_MVA_Female agemo_mda, `mformat2
+> ') (line cod_MVA_hat_Female agemo_mda if agemo_mda <= -1, `lformat2') (line c
+> od_MVA_hat_Female agemo_mda if agemo_mda > 0, `lformat2') /// 
+>                                 , xtitle("Age (in months) since MDA", `xtitle
+> size') ytitle("Deaths per 100,000", `ytitlesize') xlabel(-12(2)12, `xlabsize'
+> ) ylabel(, `ylabsize') graphregion(fcolor(white))  legend(cols(4) order(1 "Ma
+> les" 2 "" 4 "Females" 5 "") `legendsize')
+.         graph export "$Driving/results/figures/rd_mva_male_female.pdf", as(pd
+> f) replace 
+file ./results/figures/rd_mva_male_female.pdf saved as PDF format
+. }
+
+. 
+. ***************************************************************
+. * RD mortality over time estimates, separately by male/female
+. ***************************************************************
+. 
+. if `rd_mortality_yearbins'==1 {
+.         
+.         * Number of years in the bin
+.         local num_yrs = 4
+.         
+.         local replace replace
+.         qui forval yr = 1983(`num_yrs')2013 {
+. 
+.         * Figures - for MVA and poisoning by sex
+.         foreach y in cod_MVA cod_sa_poisoning {
+  2.         foreach scen in Male Female {
+  3.     
+.                 * RD mortality over time estimates
+.                 use "`results'", clear
+  4.         
+.                 keep if y=="`y'"
+  5.                 keep if scenario=="`scen'"
+  6.                 keep if var=="Robust"
+  7.                 replace coef = b_conv if var=="Robust"
+  8.         
+.                 if "`scen'" == "Male" local color "red"
+  9.                 if "`scen'" == "Female" local color "blue"
+ 10.                 
+.                 local filename "`=lower("`y'_`scen'")'"
+ 11.                 
+.                 * Output figure
+.                 graph twoway (connected coef years,  clcolor(`color') clpatte
+> rn(solid) lwidth(thick) msym(circle) mcol(`color') msize(large)) ///
+>                                          (line ci_lower years,  clcolor(`colo
+> r') clpattern(dash) lwidth(medium) ) ///
+>                                          (line ci_upper years,  clcolor(`colo
+> r') clpattern(dash) lwidth(medium) ) ///
+>                                          , xtitle("Year", `xtitlesize') ytitl
+> e("Deaths per 100,000", `ytitlesize') xlabel(1983(4)2013, `xlabsize') ylabel(
+> , `ylabsize') graphregion(fcolor(white)) legend(order(1 "`scen' estimate" 2 "
+> 95% confidence interval") `legendsize') yline(0)
+ 12.                 graph export "$Driving/results/figures/yearbins_`filename'
+> .pdf", as(pdf) replace
+ 13.         }
+ 14.         }
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file ./results/figures/yearbins_cod_mva_male.pdf saved as PDF format
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file ./results/figures/yearbins_cod_mva_female.pdf saved as PDF format
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file ./results/figures/yearbins_cod_sa_poisoning_male.pdf saved as PDF format
+(16 observations deleted)
+(8 observations deleted)
+(0 observations deleted)
+(8 real changes made)
+file ./results/figures/yearbins_cod_sa_poisoning_female.pdf saved as PDF
+    format
+.         
+. }
+
+. 
+. *******************************************************
+. * RD estimates separately for suicides and accidents
+. *******************************************************
+. if `rd_mortality_suicide_acct'==1 {
+.         
+.         local replace replace
+.         qui foreach scenario in "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "$Driving/results/intermediate/mortality_rd_suicide_acct.dta", r
+> eplace
+file ./results/intermediate/mortality_rd_suicide_acct.dta saved
+. }
+
+. 
+. ************************************************************
+. * Robustness checks (different polynomials and bandwidths)
+. ************************************************************
+. if `rd_mortality_robustness'==1 {
+.         
+.         local replace replace
+.         qui foreach scenario in "All" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "$Driving/results/intermediate/mortality_rd_robustness.dta", rep
+> lace
+file ./results/intermediate/mortality_rd_robustness.dta saved
+. }
+
+. 
+. ***********************
+. * Placebo analysis
+. ***********************
+. if `rd_mortality_placebo'==1 {
+.         
+.         local replace replace
+.         qui foreach scenario in "All" "Male" "Female" {
+.         
+.         * Output regression results
+.         use "`results'", clear
+.         save "$Driving/results/intermediate/mortality_rd_placebo.dta", replac
+> e
+file ./results/intermediate/mortality_rd_placebo.dta saved
+.         
+. }
+
+. 
+. *********************************
+. * Multiple hypothesis testing   
+. *********************************
+. if `adjustedp' {
+.         
+.         * Multiple hypothesis code comes from wyoung.ado (Jones, Molitor, and
+>  Reif 2019)
+.         program drop _all
+.         program define calc_adjustedp
+  1. 
+.                 ren pval p
+  2. 
+.                 * Include k in the sort to break ties
+.                 gen k = _n
+  3.                 sort group p k
+  4. 
+.                 tempname j
+  5.                 by group: gen `j' = _N-_n+1
+  6.                         
+.                 by group: gen double pbonf = min(p*`j',1) if _n==1
+  7.                 by group: replace    pbonf = min(max(p*`j',pbonf[_n-1]),1)
+>  if _n>1
+  8. 
+.                 by group: gen double psidak = min((1-(1-p)^(`j')),1) if _n==1
+  9.                 by group: replace    psidak = min(max((1-(1-p)^(`j')),psid
+> ak[_n-1]),1) if _n>1
+ 10.                 
+.                 by group: gen num_H0 = _N
+ 11.                 
+.                 label var coef "Coefficient"
+ 12.                 label var y "Outcome variable"
+ 13.                 label var p "Unadjusted"
+ 14.                 label var pbonf "Bonferroni-Holm"
+ 15.                 label var psidak "Sidak-Holm"   
+ 16.                 label var num_H0 "Number of hypotheses"
+ 17.         end     
+.         
+.         ***
+.         * Mortality outcomes
+.         ***
+.         use "$Driving/results/intermediate/mortality_rd.dta", clear
+.         isid var y scenario
+.         keep if inlist(scenario,"All","Male","Female")
+(108 observations deleted)
+. 
+.         * For rdrobust, we will use the point estimate from "conventional" es
+> timate and inference from "robust" bias-correction
+.         keep if inlist(var,"Robust","1.post")
+(273 observations deleted)
+.         replace coef = b_conv if var=="Robust"
+(39 real changes made)
+. 
+.         * Keep relevant variables in family. Family defined as RD spec (robus
+> t/OLS) X subgroup(all or male/female)
+.         drop if strpos(y,"_acct") | strpos(y,"_suicide")
+(0 observations deleted)
+.         gen group     = 10 if var=="Robust"
+(39 missing values generated)
+.         replace group = 20 if var=="1.post"
+(39 real changes made)
+.         replace group = group+1 if scenario=="All"
+(26 real changes made)
+.         
+.         calc_adjustedp
+(74 missing values generated)
+(74 real changes made)
+(74 missing values generated)
+(74 real changes made)
+.         keep rdspec var y scenario num_H0 pbonf psidak
+.         tempfile adjustedp
+.         save "`adjustedp'", replace
+(file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St01464.00000e not
+    found)
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St01464.00000e saved
+    as .dta format
+. 
+.         ***
+.         * Add health outcomes
+.         ***
+.         use "$Driving/results/intermediate/addhealth_rd.dta", clear
+.         keep if inlist(scenario,"All","Male","Female")
+(0 observations deleted)
+.         isid var y scenario
+. 
+.         * For rdrobust, we will use the point estimate from "conventional" es
+> timate and inference from "robust" bias-correction
+.         keep if inlist(var,"Robust","1.post")
+(63 observations deleted)
+.         replace coef = b_conv if var=="Robust"
+(11 real changes made)
+.         
+.         * Adjust done for RD spec (robust/OLS), and subgroup (full or M/F)
+.         drop if inlist(y,"Work4weeks","DriverLicense","VehicleMiles_150","Veh
+> icleMiles_265")
+(19 observations deleted)
+.         gen group     = 100 if var=="Robust"
+.         replace group = 200 if var=="1.post"
+(0 real changes made)
+.         replace group = group + 10 if scenario=="All"
+(1 real change made)
+.         
+.         * Output adjusted p-values
+.         calc_adjustedp
+(0 real changes made)
+(0 real changes made)
+.         keep rdspec var y scenario num_H0 pbonf psidak
+.         append using "`adjustedp'"
+(variable y was str16, now str22 to accommodate using data's values)
+(variable scenario was str6, now str17 to accommodate using data's values)
+.         save "$Driving/results/intermediate/adjustedp.dta", replace
+file ./results/intermediate/adjustedp.dta saved
+. }
+
+. 
+. 
+. ** EOF
+. 
+end of do-file
+
+. do "$Driving/scripts/5_supporting_analysis.do"
+
+. ************
+. * SCRIPT: 5_supporting_analysis.do
+. * PURPOSE: Calculate and confirm miscellaneous statistic; create supplemental
+>  figures
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "$Driving/scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. assert !mi("$Driving")
+
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. 
+. * Note: FARS code is disabled because the raw data are not included in this r
+> eplication package
+. local fars 0
+
+. 
+. * Titles and label formatting
+. local xtitlesize "size(medlarge)"
+
+. local ytitlesize "size(medlarge)"
+
+. local xlabsize "labsize(medium)"
+
+. local ylabsize "labsize(medium)"
+
+.         
+. * Marker and line fit formatting
+. local mformat "msize(small)"
+
+. local mformat2 "msize(large)"
+
+. local lformat "lwidth(thick)"
+
+. local lformat2 "lwidth(vthick)"
+
+. local legendsize "size(medlarge)"
+
+. local legendsize2 "size(small)"
+
+. 
+. 
+. ***
+. * Population size
+. ***
+. 
+. use "$Driving/data/seer/derived/seer_pop1983_2014st.dta", clear
+
+. keep if age==16
+(130,560 observations deleted)
+
+. 
+. collapse (sum) pop, by(year) fast
+
+. sum pop
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         pop |         32     3931562    355636.1    3286646    4502997
+
+. 
+. * "There was an average of 3.9 million 16-year-olds alive in the United State
+> s during 1983-2014."
+. assert abs(r(mean)-3931562)<1
+
+. 
+. ***
+. * Unadjusted p-value statement
+. ***
+. 
+. * "A multiple testing correction would need to adjust for many thousands of h
+> ypotheses to increase the unadjusted p-value (p<0.00001) above the convention
+> al significance level of 0.05."
+. use "$Driving/results/intermediate/mortality_rd.dta", clear
+
+. keep if y=="cod_sa_poisoning"
+(378 observations deleted)
+
+. keep if scenario=="Female"
+(72 observations deleted)
+
+. 
+. assert pval < 0.00001 if rdspec=="rdrobust"
+
+. 
+. ***
+. * Working for pay outcome (Add Health)
+. ***
+. 
+. * "The MSE-optimal RD estimate from equation (1) is an increase in working fo
+> r pay of 2.9 percentage points (p=0.411), with a 95% robust bias-corrected co
+> nfidence interval of [-0.0385, 0.0942]."
+. use "$Driving/results/intermediate/addhealth_rd.dta", clear
+
+. keep if y=="Work4weeks" & rdspec=="rdrobust" & scenario=="All"
+(82 observations deleted)
+
+. replace coef = b_conv if var=="Robust"
+(1 real change made)
+
+. assert _N==1
+
+. assert abs(coef-.0293628)<0.000001
+
+. assert abs(pval-.4107024)<0.000001
+
+. assert abs(ci_lower+.0384839)<0.0000001
+
+. assert abs(ci_upper-.0941577)<0.0000001
+
+. 
+. ***
+. * Not enrolled in school outcome (Add Health)
+. ***
+. 
+. * "The MSE-optimal estimate for not enrolled in school is -0.021 percentage p
+> oints (p=0.829), with a 95% robust bias-corrected confidence interval of [-0.
+> 0104, 0.0083]."
+. use "$Driving/results/intermediate/addhealth_rd.dta", clear
+
+. keep if y=="NotEnrolled" & rdspec=="rdrobust" & scenario=="All"
+(82 observations deleted)
+
+. replace coef = b_conv if var=="Robust"
+(1 real change made)
+
+. assert _N==1
+
+. assert abs(coef+.000211)<0.000001
+
+. assert abs(pval-.8289872)<0.000001
+
+. assert abs(ci_lower+.010356)<0.0000001
+
+. assert abs(ci_upper-.0083)<0.0000001
+
+. 
+. *****************************************************
+. ****** Appendix Figures: aggregate mortality trends *
+. *****************************************************
+. 
+. * Main data for analysis
+. use "$Driving/data/mortality/derived/sex_agegroup_8314.dta", clear
+
+. 
+. * Restrict to ages 15-19 (i.e., group 2)
+. keep if agegroup==2
+(960 observations deleted)
+
+. 
+. * Causes of death
+. local vars "cod_any cod_MVA cod_sa cod_sa_poisoning cod_sa_firearms cod_sa_dr
+> owning cod_sa_other"
+
+. compress
+  variable cod_extother was int now byte
+  (320 bytes saved)
+
+.         
+. * Collapse by year and gender
+. collapse (sum) `vars' pop, by(year male) fast
+
+. 
+. * Death rates per 100,000
+. foreach y in `vars' {
+  2.         replace `y'=100000*`y'/pop
+  3. }
+(64 real changes made)
+(64 real changes made)
+(64 real changes made)
+(64 real changes made)
+(64 real changes made)
+(64 real changes made)
+(64 real changes made)
+
+. 
+. * Generate cause-by-agegroup categories for figures
+. gen All_male=cod_any                  if male==1
+(32 missing values generated)
+
+. gen MVA_male=cod_MVA                  if male==1
+(32 missing values generated)
+
+. gen SA_male=cod_sa                    if male==1        
+(32 missing values generated)
+
+. gen poisoning_male=cod_sa_poisoning   if male==1
+(32 missing values generated)
+
+. gen firearm_male=cod_sa_firearms      if male==1
+(32 missing values generated)
+
+. gen drowning_male=cod_sa_drowning     if male==1
+(32 missing values generated)
+
+. gen other_male=cod_sa_other           if male==1
+(32 missing values generated)
+
+. gen All_female=cod_any                if male==0
+(32 missing values generated)
+
+. gen MVA_female=cod_MVA                if male==0        
+(32 missing values generated)
+
+. gen SA_female=cod_sa                  if male==0
+(32 missing values generated)
+
+. gen poisoning_female=cod_sa_poisoning if male==0
+(32 missing values generated)
+
+. gen firearm_female=cod_sa_firearms    if male==0
+(32 missing values generated)
+
+. gen drowning_female=cod_sa_drowning   if male==0
+(32 missing values generated)
+
+. gen other_female=cod_sa_other         if male==0
+(32 missing values generated)
+
+.         
+. * All causes, MVA, suicide and accident
+. graph twoway (line All_male year,  clcolor(blue) clpattern(solid) `lformat' m
+> sym(oh) mcol(blue) `mformat') /// 
+>                          (line MVA_male year,  clcolor(red) clpattern(dash) `
+> lformat' msym(sh) mcol(red) `mformat') ///
+>                          (line SA_male year, clcolor(green) clpattern(dot) `l
+> format2' msym(X) mcol(green) `mformat' yaxis(2)) ///
+>                          , xtitle("Year", `xtitlesize') xlabel(1983 1985 1990
+>  1995 2000 2005 2010 2014, `xlabsize' angle(vertical)) ytitle("Deaths per 100
+> ,000", `ytitlesize') ylabel(0(20)140, `ylabsize' gmax gmin) ytitle("Deaths pe
+> r 100,000", `ytitlesize' axis(2)) ylabel(0(6)36, `ylabsize' axis(2)) graphreg
+> ion(fcolor(white)) legend(order(1 "All causes" 2 "Motor vehicle accident" 3 "
+> Suicide and accident (right axis)") `legendsize2') 
+
+. graph export "$Driving/results/figures/appendix_mort_trends_male.pdf", as(pdf
+> ) replace  
+file ./results/figures/appendix_mort_trends_male.pdf saved as PDF format
+
+. 
+. graph twoway (line All_female  year, clcolor(blue) clpattern(solid) `lformat'
+>  msym(oh) mcol(blue) `mformat') /// 
+>                          (line MVA_female  year, clcolor(red) clpattern(dash)
+>  `lformat' msym(sh) mcol(red) `mformat') ///
+>                          (line SA_female year, clcolor(green) clpattern(dot) 
+> `lformat2' msym(X) mcol(green) `mformat' yaxis(2)) ///
+>                          , xtitle("Year", `xtitlesize') xlabel(1983 1985 1990
+>  1995 2000 2005 2010 2014, `xlabsize' angle(vertical)) ytitle("Deaths per 100
+> ,000", `ytitlesize') ylabel(0(20)60, `ylabsize' gmax gmin) ytitle("Deaths per
+>  100,000", `ytitlesize' axis(2)) ylabel(0(2)8, `ylabsize' axis(2)) graphregio
+> n(fcolor(white)) legend(order(1 "All causes" 2 "Motor vehicle accident" 3 "Su
+> icide and accident (right axis)") `legendsize2') 
+
+. graph export "$Driving/results/figures/appendix_mort_trends_female.pdf", as(p
+> df) replace
+file ./results/figures/appendix_mort_trends_female.pdf saved as PDF format
+
+. 
+. * Poisoning, firearms, drowning, other
+. foreach y in poisoning firearm drowning other {
+  2. 
+.         graph twoway (line `y'_male year, clcolor(red) clpattern(dash) `lform
+> at' msym(sh) mcol(red) `mformat') ///
+>                                  (line `y'_female year, clcolor(blue) clpatte
+> rn(solid) `lformat' msym(oh) mcol(blue) `mformat') ///
+>                                  , xtitle("Year", `xtitlesize') xlabel(1983 1
+> 985 1990 1995 2000 2005 2010 2014, `xlabsize' angle(vertical)) ytitle("Deaths
+>  per 100,000", `ytitlesize') graphregion(fcolor(white)) ylabel(, `ylabsize' g
+> max gmin) legend(order(1 "Males" 2 "Females") `legendsize') 
+  3.         graph export "$Driving/results/figures/appendix_mort_trends_`y'.pd
+> f", as(pdf) replace
+  4. 
+. }
+file ./results/figures/appendix_mort_trends_poisoning.pdf saved as PDF format
+file ./results/figures/appendix_mort_trends_firearm.pdf saved as PDF format
+file ./results/figures/appendix_mort_trends_drowning.pdf saved as PDF format
+file ./results/figures/appendix_mort_trends_other.pdf saved as PDF format
+
+. 
+. ********************************************************************
+. ******* Appendix Figure: fraction of teenagers with license (FHWA) *
+. ********************************************************************
+. 
+. * FHWA licensed drivers data
+. use "$Driving/processed/fhwa_8314.dta", clear
+
+.         
+. * Calculate age-specific licensing rates
+. gen age16_yr=total_16/pop_16*1000
+
+. gen age17_yr=total_17/pop_17*1000
+
+. gen age18_yr=total_18/pop_18*1000
+
+. gen age19_yr=total_19/pop_19*1000       
+
+. 
+. 
+. graph twoway (line age16_yr year,  clcolor(green) clpattern(solid) `lformat' 
+> msym(X) mcol(green) `mformat') ///
+>                          (line age17_yr year,  clcolor(red) clpattern(dash) `
+> lformat' msym(sh) mcol(red) `mformat') ///
+>                          (line age18_yr year,  clcolor(orange) clpattern(dot)
+>  `lformat2' msym(th) mcol(orange) `mformat') ///
+>                          (line age19_yr year,  clcolor(purple) clpattern(dash
+> _dot) `lformat' msym(dh) mcol(purple) `mformat') ///
+>                          , xtitle("Year", `xtitlesize') ylabel(0(.2).9, `ylab
+> size') xlabel(1983 1985 1990 1995 2000 2005 2010 2014, `xlabsize' angle(verti
+> cal))  graphregion(fcolor(white)) legend(order(1 "Age 16" 2 "Age 17" 3 "Age 1
+> 8" 4 "Age 19") `legendsize') 
+
+. graph export "$Driving/results/figures/appendix_license_trends_ages1619.pdf",
+>  as(pdf) replace
+file ./results/figures/appendix_license_trends_ages1619.pdf saved as PDF
+    format
+
+. 
+. *******************************************
+. ****** Driving fatality statistics (FARS) *
+. *******************************************
+. if `fars'==1 {
+. 
+. * FARS data
+. use "$Driving/processed/fars_8314.dta", clear
+. 
+. * Determine first year of driving eligibility
+. gen mda_age = floor(mda_months/12)
+. 
+. * Teenage driver killed within first year of driving eligibility
+. gen teenagedriver_decs = (age==mda_age & per_typ==1 & inj_sev==4)
+. 
+. * Identify accidents involving a killed teenage driver
+. bysort staters year st_case: egen tdriver_decs = sum(teenagedriver_decs)
+. 
+. * Identify others killed
+. gen others_decs = (teenagedriver_decs==0 & tdriver_decs>=1 & inj_sev==4)
+. 
+. preserve
+. 
+.         * Sum over accidents involving teenage driver/s 
+.         collapse (sum) others_decs if tdriver_decs>=1, by(staters year st_cas
+> e) fast
+. 
+.         ***
+.         * "on average an additional 0.24 people died for every car accident w
+> here a newly eligible teen driver died at the wheel."
+.         ***
+.         sum others_decs
+.         assert abs(r(mean)-.2412298)<0.0001
+. 
+. restore 
+. 
+. * Teenage driver within first year of driving eligibility
+. gen teenagedriver = (age==mda_age & per_typ==1)
+. 
+. * Identify accidents involving teenage drivers
+. bysort staters year st_case: egen tdriver = sum(teenagedriver)
+. 
+. * Identify others killed in accidents involving teenage driver/s with no teen
+> age driver killed
+. gen deaths_ntdriver = (inj_sev==4 & tdriver>=1 & tdriver_decs==0)
+. 
+. * Identify all deaths in accidents involving teenage driver death/s
+. gen deaths_tdriver = (inj_sev==4 & tdriver_decs>=1)
+. 
+. * Sum over accidents
+. collapse (sum) deaths_ntdriver deaths_tdriver, fast
+. 
+. ****
+. * "among all fatal car accidents involving a newly eligible teenage driver at
+>  the wheel, the accidents where that teenage driver died account for only 45%
+>  of the total fatalities."
+. ****
+. assert ((deaths_tdriver / (deaths_tdriver + deaths_ntdriver)) -.45139108 )< 0
+> .0001
+. }
+
+. 
+. **********************************************
+. ******** Appendix Figures: placebo estimates *
+. **********************************************
+. 
+. * For MVA and poisoning by sex
+. qui foreach scenario in "All" "Male" "Female" {
+
+. 
+. ********************************************
+. ******** Compulsory school attendance laws *
+. ********************************************
+. 
+. * Compulsory attendance ages
+. import excel "$Driving/data/schoolage/schoolage_laws_1994_2014.xls", firstrow
+>  clear
+(15 vars, 51 obs)
+
+. 
+. reshape long yr, i(staters) j(year)  
+(j = 1994 1996 1997 2000 2002 2004 2006 2007 2008 2009 2010 2013 2014)
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations               51   ->   663         
+Number of variables                  15   ->   4           
+j variable (13 values)                    ->   year
+xij variables:
+               yr1994 yr1996 ... yr2014   ->   yr
+-----------------------------------------------------------------------------
+
+. ren yr comp_age
+
+. 
+. * Minimum age for dropping out out of school
+. gen min_age=substr(comp_age, -2, 2)
+(3 missing values generated)
+
+. destring min_age, replace
+min_age: all characters numeric; replaced as byte
+(3 missing values generated)
+
+. assert inrange(min_age,16,18) if !mi(min_age)
+
+. 
+. replace min_age=min_age*12
+variable min_age was byte now int
+(660 real changes made)
+
+. label var min_age "Minimum school leaving age (months)"
+
+. 
+. * Add MDA law data
+. merge 1:m staters year using "$Driving/processed/intermediate/mdalaws_monthly
+> 8314.dta", assert(using match) nogenerate keep(match)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                             7,956  
+    -----------------------------------------
+
+. 
+. * Identify exact matches
+. assert !mi(mda_months )
+
+. gen match = mda_months==min_age if !mi(min_age)
+(36 missing values generated)
+
+. 
+. * "For those 13 years, 52% of our state-year observations have a minimum scho
+> ol leaving age equal to 16 years. The MDA in 31% of states is the same as the
+>  minimum school leaving age during those 13 years. However, the minimum schoo
+> l leaving age is not equal to the MDA in any state where the MDA is not 16 ye
+> ars." 
+. count if min_age==192
+  4,140
+
+. assert abs(r(N)/_N - .52036199) < 0.0001
+
+. summ match
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |      7,920    .3087121    .4619912          0          1
+
+. assert abs(r(mean)-0.3087121)<0.0001
+
+. assert match==0 if mda_months!=192
+
+. assert mda_months==192 if match==1
+
+. 
+. *************************************************
+. ******** Appendix Figure: trends in teenage VMT *
+. *************************************************
+. 
+. * Data on vehicle miles traveled per licensed driver
+. import excel "$Driving/data/nhts/nhts_1983_2017.xlsx", firstrow clear
+(4 vars, 6 obs)
+
+. format *1619 %12.0fc
+
+. 
+. * Output figure for ages 16-19
+. graph twoway (connected both_1619 year, clcolor(green) clpattern(dot) `lforma
+> t' msym(O) mcol(green) `mformat2') ///
+>                          (connected male_1619 year,  clcolor(red) clpattern(d
+> ash) `lformat' msym(O) mcol(red) `mformat2') ///
+>                      (connected female_1619 year,  clcolor(blue) clpattern(so
+> lid) lwidth(thick) msym(O) mcol(blue) `mformat2') /// 
+>                          , xtitle("Year", `xtitlesize') xlabel(1983 1990 1995
+>  2001 2009 2017, `xlabsize' angle(vertical)) ytitle("VMT per licensed driver"
+> , `ytitlesize') ylabel(0(2000)10000, `ylabsize' gmax gmin) graphregion(fcolor
+> (white)) legend(order(1 "All" 2 "Male" 3 "Female") `legendsize') 
+
+. graph export "$Driving/results/figures/appendix_vmt_trends_ages1619.pdf", as(
+> pdf) replace       
+file ./results/figures/appendix_vmt_trends_ages1619.pdf saved as PDF format
+
+.         
+.         
+. ** EOF
+. 
+end of do-file
+
+. do "$Driving/scripts/6_tables.do"
+
+. ************
+. * SCRIPT: 6_tables.do
+. * PURPOSE: Create LaTeX tables from the outputted results
+. ************
+. 
+. * Preamble (unnecessary when executing run.do)
+. do "$Driving/scripts/programs/_config.do"
+
+. ******
+. * This script contains code that allows scripts to be run individually on a s
+> tandalone basis, if the user has defined the project global in their Stata pr
+> ofile
+. * It is unnecessary when executing run.do
+. ******
+. 
+. * Ensure the script uses only local libraries and programs
+. tokenize `"$S_ADO"', parse(";")
+
+. while `"`1'"' != "" {
+  2.   if `"`1'"'!="BASE" cap adopath - `"`1'"'
+  3.   macro shift
+  4. }
+
+. adopath ++ "$Driving/scripts/libraries/stata"
+  [1]              "./scripts/libraries/stata"
+  [2]  (BASE)      "/Applications/Stata/ado/base/"
+
+. 
+. mata: mata mlib index
+.mlib libraries to be searched are now
+    lmatabase;lmataado;lmatabma;lmatacollect;lmataerm;lmatafc;lmatagsem;lmatala
+> sso;lmatamcmc;lmatameta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lm
+> atapostest;lmatapss;lmatasem;lmatasp;lmatasvy;lmatatab
+
+. 
+. * Additional code you want automatically executed
+. assert !mi("$Driving")
+
+. set varabbrev off
+
+. 
+. 
+end of do-file
+
+. 
+. ************
+. * Code begins
+. ************
+. 
+. clear
+
+. set more off
+
+. tempfile t table male_female
+
+. 
+. local reg_settings "parentheses(stderr) asterisk(5 1) sigfig(3)"
+
+. local texsave_settings "replace autonumber nofix"
+
+. 
+. local fn_bracket "Robust, bias-corrected 95\% confidence intervals are report
+> ed in brackets."
+
+. local fn_asterisk "A */** indicates significance at the 5\%/1\% level using c
+> onventional inference."
+
+. local fn_familyp "Family-wise \(p\)-values, reported in braces, adjust for th
+> e number of outcome variables in each family and for the number of subgroups.
+> "
+
+. 
+. local fn_col2_ols "Column (2) reports OLS estimates from a model employing a 
+> bandwidth of 24 months and reports robust standard errors in parentheses."
+
+. local fn_col3_mse "Column (3) reports MSE-optimal estimates and reports robus
+> t, bias-corrected 95\% confidence intervals in brackets."
+
+. 
+. 
+. * Data tables for Add Health, MDA laws, and ICD codes were created manually
+. copy "$Driving/data/add_health/appendix_data_addhealth.tex" "$Driving/results
+> /tables/appendix_data_addhealth.tex", replace
+
+. copy "$Driving/data/mda/appendix_data_mda.tex" "$Driving/results/tables/appen
+> dix_data_mda.tex", replace
+
+. copy "$Driving/data/icd_codes/appendix_data_icd_codes.tex" "$Driving/results/
+> tables/appendix_data_icd_codes.tex", replace
+
+. 
+. 
+. * Standardized cleaning of variable names
+. program drop _all
+
+. program clean_varnames 
+  1. 
+.         local indent "\ \ \ \"
+  2. 
+.         * Mortality
+.         replace `1' = "All causes" if `1'=="any"
+  3.         replace `1' = "External causes" if `1'=="external"
+  4.         replace `1' = "`indent' Motor vehicle accident" if `1'=="MVA"
+  5.         replace `1' = "`indent' Suicide and accident" if `1'=="sa"
+  6.         replace `1' = "`indent' `indent' Firearm" if `1'=="sa_firearms" | 
+> `1'=="firearms"
+  7.         replace `1' = "`indent' `indent' Poisoning" if `1'=="sa_poisoning"
+>  | `1'=="poisoning"
+  8.         replace `1' = "`indent' `indent' `indent' Drug overdose" if `1'=="
+> sa_poisoning_subst" | `1'=="poisoning_subst"
+  9.         replace `1' = "`indent' `indent' `indent' Carbon monoxide and othe
+> r gases" if `1'=="sa_poisoning_gas" | `1'=="poisoning_gas"
+ 10.         replace `1' = "`indent' `indent' Drowning" if `1'=="sa_drowning" |
+>  `1'=="drowning"
+ 11.         replace `1' = "`indent' `indent' Other" if `1'=="sa_other" | `1'==
+> "other"
+ 12.         replace `1' = "`indent' Homicide" if `1'=="homicide"
+ 13.         replace `1' = "`indent' Other external" if `1'=="extother"
+ 14.         replace `1' = "Internal causes" if `1'=="internal"
+ 15.         
+.         * Add Health
+.         replace `1' = "Has driver's license" if `1'=="DriverLicense"
+ 16.         replace `1' = "Miles driven (miles/yr) (baseline)" if `1'=="Vehicl
+> eMiles_150"
+ 17.         replace `1' = "Miles driven (miles/yr) (alternate)" if `1'=="Vehic
+> leMiles_265"
+ 18.         
+.         * Heterogeneity 
+.         replace `1' = subinstr(`1',"WhiteMale",      "White male",     1)
+ 19.         replace `1' = subinstr(`1',"WhiteFemale",    "White female",   1)
+ 20.         replace `1' = subinstr(`1',"NonwhiteMale",   "Nonwhite male",  1)
+ 21.         replace `1' = subinstr(`1',"NonwhiteFemale", "Nonwhite female",1)
+ 22.         
+.         replace `1' = "Full sample" if strpos(`1',"All") & !strpos(`1',"cause
+> s")
+ 23.         
+.         replace `1' = "`indent' MDA is 16"   if `1'=="mda192"
+ 24.         replace `1' = "`indent' MDA is not 16"   if `1'=="mda_not192"
+ 25. 
+.         replace `1' = "January"   if `1'=="birmonth1" | `1'=="birmonth1_Femal
+> e"
+ 26.         replace `1' = "February"  if `1'=="birmonth2" | `1'=="birmonth2_Fe
+> male"
+ 27.         replace `1' = "March"     if `1'=="birmonth3" | `1'=="birmonth3_Fe
+> male"
+ 28.         replace `1' = "April"     if `1'=="birmonth4" | `1'=="birmonth4_Fe
+> male"
+ 29.         replace `1' = "May"       if `1'=="birmonth5" | `1'=="birmonth5_Fe
+> male"
+ 30.         replace `1' = "June"      if `1'=="birmonth6" | `1'=="birmonth6_Fe
+> male"
+ 31.         replace `1' = "July"      if `1'=="birmonth7" | `1'=="birmonth7_Fe
+> male"
+ 32.         replace `1' = "August"    if `1'=="birmonth8" | `1'=="birmonth8_Fe
+> male"
+ 33.         replace `1' = "September" if `1'=="birmonth9" | `1'=="birmonth9_Fe
+> male"
+ 34.         replace `1' = "October"   if `1'=="birmonth10" | `1'=="birmonth10_
+> Female"
+ 35.         replace `1' = "November"  if `1'=="birmonth11" | `1'=="birmonth11_
+> Female"
+ 36.         replace `1' = "December"  if `1'=="birmonth12" | `1'=="birmonth12_
+> Female"
+ 37.         
+. end
+
+. 
+. * Destring with a sigfig() option [code taken from regsave_tbl] - used for fo
+> rmatting decimals in the tables
+. program gtostring
+  1. 
+.         syntax varlist, sigfig(numlist integer min=1 max=1 >=1 <=20) [force r
+> eplace gen(passthru)]
+  2.         
+.         if "`sigfig'"!=""   {
+  3.                 if "`format'"!="" {
+  4.                         di as error "Cannot specify both the sigfig and fo
+> rmat options."
+  5.                         exit 198                                        
+  6.                 }
+  7.                 local format "%18.`sigfig'gc"
+  8.         }
+  9.         
+.         tostring `varlist', `force' `replace' format(`format') `gen'
+ 10. 
+.         qui foreach table of varlist `varlist' {
+ 11.         
+.                 cap confirm string var `table'
+ 12.                 if !_rc {
+ 13. 
+.                         tempvar tmp diff tail numast intvar orig lngth
+ 14.                         
+.                         gen `intvar' = `table'=="."
+ 15.                         gen `orig' = `table'
+ 16.                                         
+.                         gen     `tmp' = subinstr(`table',".","",1)
+ 17.                         replace `tmp' = subinstr(`tmp',".","",1)
+ 18.                         replace `tmp' = subinstr(`tmp',"(","",1)
+ 19.                         replace `tmp' = subinstr(`tmp',")","",1)
+ 20.                         replace `tmp' = subinstr(`tmp',"[","",1)
+ 21.                         replace `tmp' = subinstr(`tmp',"]","",1)
+ 22.                         replace `tmp' = subinstr(`tmp',"*","",.)
+ 23.                         replace `tmp' = subinstr(`tmp',"-","",.)
+ 24.                         
+.                         * Remove leading zero's following the decimal point (
+> they don't count towards sig figs)
+.                         gen `lngth' = length(`tmp')
+ 25.                         summ `lngth'
+ 26.                         forval x = `r(max)'(-1)1 {
+ 27.                                 replace `tmp' = subinstr(`tmp', "0"*`x',""
+> ,1) if substr(`tmp',1,`x')=="0"*`x'
+ 28.                         }
+ 29.                         
+.                         gen `diff' = `sigfig' - length(`tmp')
+ 30.                         gen `tail' = "0"*`diff'
+ 31.                         gen `numast' = length(`table') - length(subinstr(`
+> table', "*", "", .))
+ 32. 
+.                         * Leading zero's
+.                         replace `table' = "0"  + `table' if substr(`table',1,
+> 1)=="."
+ 33.                         replace `table' = subinstr(`table',"-.","-0.",1)  
+>  if substr(`table',1,2)=="-."
+ 34.                         replace `table' = subinstr(`table',"(.","(0.",1)  
+>  if substr(`table',1,2)=="(."
+ 35.                         replace `table' = subinstr(`table',"[.","[0.",1)  
+>  if substr(`table',1,2)=="[."
+ 36.                         replace `table' = subinstr(`table',"(-.","(-0.",1)
+>  if substr(`table',1,3)=="(-."
+ 37.                         replace `table' = subinstr(`table',"[-.","[-0.",1)
+>  if substr(`table',1,3)=="[-."
+ 38. 
+.                         * Trailing zero's (note: asterisks can't occur with "
+> )" or "]", because those are only for stderrs/tstats/ci)
+.                         replace `table' = `table' +       `tail'             
+>                                     if strpos(`table',".")!=0 & strpos(`table
+> ',"*")==0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !mi(`tail')
+ 39.                         replace `table' = `table' + "." + `tail'          
+>                                        if strpos(`table',".")==0 & strpos(`ta
+> ble',"*")==0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !mi(`tai
+> l')
+ 40.                         
+.                         replace `table' = substr(`table',1,length(`table')-`n
+> umast') +       `tail' + "*"*`numast'     if strpos(`table',".")!=0 & strpos(
+> `table',"*")!=0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !mi(`
+> tail')
+ 41.                         replace `table' = substr(`table',1,length(`table')
+> -`numast') + "." + `tail' + "*"*`numast'     if strpos(`table',".")==0 & strp
+> os(`table',"*")!=0 & substr(`table',1,1)!="(" & substr(`table',1,1)!="[" & !m
+> i(`tail')
+ 42.                         
+.                         replace `table' = subinstr(`table',")",`tail'+")",1) 
+> if strpos(`table',".")!=0 & substr(`table',1,1)=="("
+ 43.                         replace `table' = subinstr(`table',"]",`tail'+"]",
+> 1) if strpos(`table',".")!=0 & substr(`table',1,1)=="["
+ 44.                         
+.                         * Variables that were stored as integers (or missing)
+>  are exact and shouldn't be altered
+.                         replace `table' = `orig' if `intvar'==1
+ 45.                         replace `table' = "" if `table'=="."
+ 46.                                         
+.                         drop `tmp' `diff' `tail' `numast' `intvar' `orig'
+ 47.                 }
+ 48.         }
+ 49. end
+
+. 
+. ********************************************************
+. * Annual US deaths per 100,000 population, 1983-2014
+. ********************************************************
+. local vars "cod_any cod_external cod_internal cod_MVA cod_homicide cod_extoth
+> er cod_sa cod_sa_firearms cod_sa_poisoning cod_sa_poisoning_subst cod_sa_pois
+> oning_gas cod_sa_drowning cod_sa_other"
+
+. 
+. local replace replace
+
+. local run_male_female = 0
+
+. qui foreach scenario in "Female" "Male" "All" {
+
+. 
+. clean_varnames cod
+(3 real changes made)
+(3 real changes made)
+variable cod was str18 now str30
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+variable cod was str30 now str37
+(3 real changes made)
+variable cod was str37 now str55
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. drop agegroup
+
+. order cod cod_ cod_2 cod_3 cod_4
+
+. label var cod "Cause of death"
+
+. 
+. * Create panels
+. ingap 1 14 27
+
+. replace cod = "A. All" in 1 if mi(cod)
+(1 real change made)
+
+. replace cod = "B. Males" in 15 if mi(cod)
+(1 real change made)
+
+. replace cod = "C. Females" in 29 if mi(cod)
+(1 real change made)
+
+. ingap 14 28, after
+
+. 
+. * Output table
+. local title "Annual US deaths per 100,000 population, 1983--2014"
+
+. local fn "Notes: Death counts come from the National Vital Statistics. Popula
+> tion estimates come from the Surveillance, Epidemiology, and End Results (SEE
+> R) Program."
+
+. 
+. texsave using "$Driving/results/tables/appendix_data_mortality.tex", varlabel
+> s marker("tab:appendix_data_mortality")  size(small) bold("A. " "B. " "C. ") 
+> title("`title'") hlines(1 16 31) footnote("`fn'") `texsave_settings'
+
+. 
+. *******************************************************************
+. *  Effect of driving eligibility on teenage driving and mortality
+. *******************************************************************
+. 
+. * Main mortality RD estimates
+. use "$Driving/results/intermediate/mortality_rd.dta", clear
+
+. 
+. * Add Health RD estimates
+. append using "$Driving/results/intermediate/addhealth_rd.dta"
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. keep if inlist(var,"Robust")
+(480 observations deleted)
+
+. replace coef = b_conv if var=="Robust"
+(62 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str7
+ci_lower was forced to string; some loss of information
+ci_upper was float now str6
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. * Adjusted p-values
+. merge 1:1 var y rdspec scenario using "$Driving/results/intermediate/adjusted
+> p.dta", nogenerate keep(match master)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                            22
+        from master                        22  
+        from using                          0  
+
+    Matched                                40  
+    -----------------------------------------
+
+. 
+. * Remove "cod_" from the variable y
+. replace y = subinstr(y,"cod_","",1)
+(51 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. qui foreach y in extother homicide sa_other sa_drowning sa_poisoning_gas sa_p
+> oisoning_subst sa_poisoning sa_firearms sa MVA external internal any VehicleM
+> iles_265 VehicleMiles_150 DriverLicense {
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. drop if inlist(var,"DriverLicense_adjp","VehicleMiles_150_adjp","VehicleMiles
+> _265_adjp")
+(3 observations deleted)
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y_All full mean_y_Male male mean_y_Female female
+
+. gtostring mean_y*, force replace sigfig(3)
+mean_y_All was float now str4
+mean_y_All was forced to string; some loss of information
+mean_y_Male was float now str5
+mean_y_Male was forced to string; some loss of information
+mean_y_Female was float now str5
+mean_y_Female was forced to string; some loss of information
+
+. replace mean_y_All    = "" if mean_y_All=="."
+(0 real changes made)
+
+. replace mean_y_Male   = "" if mean_y_Male=="."
+(0 real changes made)
+
+. replace mean_y_Female = "" if mean_y_Female=="."
+(0 real changes made)
+
+. 
+. foreach v in male female full {
+  2.         replace `v' = "\(<\)0.0001" if real(`v')<0.0001 & strpos(var,"adjp
+> ")
+  3.         replace `v' = "\(<\)0.001" if real(`v')<0.001 & strpos(var,"adjp")
+>       
+  4.         replace `v' = "\(<\)0.01" if real(`v')<0.01 & strpos(var,"adjp")  
+>       
+  5.         replace `v' = "\{"+ `v' +"\}" if strpos(var,"adjp")
+  6.         label var `v' "RD"
+  7. }
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(13 real changes made)
+(4 real changes made)
+(2 real changes made)
+(0 real changes made)
+(13 real changes made)
+(1 real change made)
+(2 real changes made)
+(0 real changes made)
+(13 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_ci")
+(16 real changes made)
+
+. replace var = "" if strpos(var,"_adjp")
+(13 real changes made)
+
+. replace var = subinstr(var,"_coef","",1)
+(16 real changes made)
+
+. clean_varnames var
+(1 real change made)
+(1 real change made)
+variable var was str23 now str30
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+variable var was str30 now str37
+(1 real change made)
+variable var was str37 now str55
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str55 now str74
+(16 real changes made)
+
+. 
+. * Create panels
+. ingap 1 7
+
+. replace var = "A. Driving" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Mortality" in 8 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var full "RD"
+
+. label var male "RD"
+
+. label var female "RD"
+
+. label var mean_y_All "Mean"
+
+. label var mean_y_Male "Mean"
+
+. label var mean_y_Female "Mean"
+
+. label var var "Outcome variable"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on teenage driving and mortality"
+
+. local headerlines "& \multicolumn{2}{c}{Full sample} & \multicolumn{2}{c}{Mal
+> e} & \multicolumn{2}{c}{Female}" "\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmid
+> rule(lr){6-7}"
+
+. local fn "Notes: The driving estimates in Panel A are based on weighted respo
+> nses to the 1995--1996 Add Health surveys. The mortality estimates in Panel B
+> , which are measured in deaths per 100,000 person-years, are based on death c
+> ounts from the 1983--2014 National Vital Statistics and population data from 
+> the 1983--2014 Surveillance, Epidemiology, and End Results (SEER) Program.  C
+> olumns (1), (3), and (5) report means of the dependent variable one year befo
+> re reaching the minimum driving age (MDA). Columns (2), (4), and (6) report M
+> SE-optimal estimates of \(\beta\) from equation (\ref{E - RD1}). `fn_bracket'
+>  `fn_asterisk' `fn_familyp'"
+
+. 
+. texsave using "$Driving/results/tables/rd_mortality.tex", varlabels marker("t
+> ab:rd_mortality") size(scriptsize) align(lCcCcCc) headerlines("`headerlines'"
+> ) bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", size(script
+> size)) `texsave_settings'
+
+. 
+. ******************************************************************
+. * Effect of driving eligibility on female suicides and accidents   
+. ******************************************************************
+. 
+. * RD estimates for female suicides and accidents
+. use "$Driving/results/intermediate/mortality_rd_suicide_acct.dta", clear
+
+. keep if scenario=="Female" & rdspec=="rdrobust"
+(21 observations deleted)
+
+. drop scenario
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. replace coef = b_conv if var=="Robust"
+(21 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str7
+ci_lower was forced to string; some loss of information
+ci_upper was float now str6
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. replace y = subinstr(y,"cod_","",1)
+(21 real changes made)
+
+. 
+. tempfile table_acct table_suicide table_sa
+
+. 
+. preserve
+
+. 
+. foreach t in "acct" "suicide" "sa" {
+  2. local run_no = 0
+  3. qui foreach y in `t' `t'_firearms `t'_poisoning `t'_poisoning_subst `t'_po
+> isoning_gas `t'_drowning `t'_other {
+  4. 
+.         * MSE-optimal
+.         regsave_tbl if y=="`y'" & rdspec=="rdrobust", name(rdrobust) `reg_set
+> tings'
+  5.         keep if inlist(var,"Robust_coef","ci")
+  6.         replace var = "`y'" if var=="Robust_coef"
+  7.         replace var = "`y'_ci" if var=="ci"
+  8.         if `run_no'==1 append using "`table_`t''"
+  9.         gen sortorder = _n
+ 10.         local run_no = 1
+ 11.         save "`table_`t''", replace
+ 12.         restore, preserve
+ 13. 
+.         * Mean
+.         keep if y=="`y'"
+ 14.         keep mean_y
+ 15.         gen var = "`y'"
+ 16.         merge 1:1 var using "`table_`t''", assert(match using) nogenerate
+ 17.         sort sortorder
+ 18.         drop sortorder
+ 19.         save "`table_`t''", replace
+ 20.         restore, preserve
+ 21. }
+ 22. }
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. restore, not
+
+. use "`table_acct'", clear
+
+. rename (mean_y rdrobust) (mean_y_acct rdrobust_acct)
+
+. replace var = "total" if var=="acct"
+(1 real change made)
+
+. replace var = "total_ci" if var=="acct_ci"
+(1 real change made)
+
+. replace var = subinstr(var,"acct_","",1)
+(12 real changes made)
+
+. save "`table'", replace
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St01464.000002 saved
+    as .dta format
+
+. 
+. use "`table_suicide'", clear
+
+. rename (mean_y rdrobust) (mean_y_suicide rdrobust_suicide)
+
+. replace var = "total" if var=="suicide"
+(1 real change made)
+
+. replace var = "total_ci" if var=="suicide_ci"
+(1 real change made)
+
+. replace var = subinstr(var,"suicide_","",1)
+(12 real changes made)
+
+. merge 1:1 var using "`table'", assert(match) nogenerate
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                                14  
+    -----------------------------------------
+
+. save "`table'", replace
+file /var/folders/f4/7drmhl1d5kj3wp1r33jvx32m0000gn/T//St01464.000002 saved
+    as .dta format
+
+. 
+. use "`table_sa'", clear
+
+. rename (mean_y rdrobust) (mean_y_sa rdrobust_sa)
+
+. replace var = "total" if var=="sa"
+(1 real change made)
+
+. replace var = "total_ci" if var=="sa_ci"
+(1 real change made)
+
+. replace var = subinstr(var,"sa_","",1)
+(12 real changes made)
+
+. merge 1:1 var using "`table'", assert(match) nogenerate
+(variable var was str21, now str26 to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                                14  
+    -----------------------------------------
+
+. 
+. order var mean_y_suicide rdrobust_suicide mean_y_acct rdrobust_acct mean_y_sa
+>  rdrobust_sa
+
+. gtostring mean_y*, force replace sigfig(3)
+mean_y_suicide was float now str5
+mean_y_suicide was forced to string; some loss of information
+mean_y_acct was float now str4
+mean_y_acct was forced to string; some loss of information
+mean_y_sa was float now str4
+mean_y_sa was forced to string; some loss of information
+
+. 
+. sortobs var, values("total" "total_ci" "firearms" "firearms_ci" "poisoning" "
+> poisoning_ci" "poisoning_subst" "poisoning_subst_ci" "poisoning_gas" "poisoni
+> ng_gas_ci" "drowning" "drowning_ci" "other" "other_ci")
+
+. replace var = "Total suicides/accidents" if var=="total"
+(1 real change made)
+
+. replace var = "" if strpos(var,"_ci")
+(7 real changes made)
+
+. clean_varnames var
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+variable var was str26 now str37
+(1 real change made)
+variable var was str37 now str55
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = subinstr(var,"\ \ \ \","",1)
+(6 real changes made)
+
+. 
+. * Label variables
+. foreach v in suicide acct sa {
+  2.         label var rdrobust_`v' "RD"
+  3.         label var mean_y_`v' "Mean"
+  4. }
+
+. label var var "Cause of death"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on female suicides and accidents"
+
+. local headerlines "& \multicolumn{2}{c}{Female suicides} & \multicolumn{2}{c}
+> {Female accidents} & \multicolumn{2}{c}{Female suicides and accidents}"  "\cm
+> idrule(lr){2-3} \cmidrule(lr){4-5}  \cmidrule(lr){6-7}"
+
+. local fn "Notes: This table reports MSE-optimal estimates of \(\beta\) from e
+> quation (\ref{E - RD1}). The dependent variable is deaths per 100,000 person-
+> years. Columns (1), (3), and (5) report means of the dependent variable one y
+> ear before reaching the minimum driving age (MDA). Columns (5)--(6) reproduce
+>  the numbers reported in Columns (5)--(6) of Table \ref{tab:rd_mortality}. Th
+> e estimates in Columns (2) and (4) do not necessarily add up to the estimate 
+> in Column (6) because bandwidths are not constant across different regression
+> s. `fn_bracket' `fn_asterisk' Familywise \(p\)-values are not reported in thi
+> s exploratory analysis."
+
+. local model rdrobust
+
+. texsave var mean_y_suicide `model'_suicide mean_y_acct `model'_acct mean_y_sa
+>  `model'_sa using "$Driving/results/tables/rd_mortality_sa_female.tex", varla
+> bels marker("tab:rd_mortality_sa_mse") headerlines("`headerlines'") title("`t
+> itle'") footnote("`fn'") landscape align(lCcCcCc) size(small) `texsave_settin
+> gs'
+
+. 
+. **********************************************************************
+. * Effect of driving eligibility on mortality for different subgroups
+. **********************************************************************
+. 
+. * Main mortality RD estimates
+. use "$Driving/results/intermediate/mortality_rd.dta", clear
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. keep if inlist(var,"1.post","Robust")
+(357 observations deleted)
+
+. replace coef = b_conv if var=="Robust"
+(51 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str7
+ci_lower was forced to string; some loss of information
+ci_upper was float now str6
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. * We will use male/female results in two different tables, so create a duplic
+> ate
+. expand 2 if inlist(scenario,"Female","Male"), gen(dup)
+(52 observations created)
+
+. replace scenario = "mda_Female" if scenario=="Female" & dup==1
+(26 real changes made)
+
+. replace scenario = "mda_Male" if scenario=="Male" & dup==1
+(26 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. foreach y in cod_MVA cod_sa_poisoning {
+  2. qui foreach scen in "mda_not192_Female" "mda192_Female" "mda_Female" "mda_
+> not192_Male" "mda192_Male" "mda_Male" {
+  3.         
+.         * OLS
+.         regsave_tbl if scenario=="`scen'" & y=="`y'" & rdspec=="ols", name(ol
+> s) `reg_settings'
+  4.         keep if inlist(var,"1.post_coef", "1.post_stderr")
+  5.         replace var = "`y'_`scen'" if var=="1.post_coef"
+  6.         replace var = "`y'_`scen'_ci" if var=="1.post_stderr"
+  7.         if `run_no'==1 append using "`table'"
+  8.         gen sortorder = _n
+  9.         local run_no = 1
+ 10.         save "`table'", replace
+ 11.         restore, preserve
+ 12. 
+.         * MSE-optimal
+.         regsave_tbl if scenario=="`scen'" & y=="`y'" & rdspec=="rdrobust", na
+> me(rdrobust) `reg_settings'
+ 13.         keep if inlist(var,"Robust_coef","ci")
+ 14.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 15.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 16.         merge 1:1 var using "`table'", assert(match using) nogenerate
+ 17.         save "`table'", replace
+ 18.         restore, preserve
+ 19. 
+.         * Mean (same for OLS and rdrobust)
+.         keep if scenario=="`scen'" & y=="`y'" & rdspec=="ols"
+ 20.         keep mean_y
+ 21.         gen var = "`y'_`scen'"
+ 22.         merge 1:1 var using "`table'", assert(match using) nogenerate   
+ 23.         sort sortorder
+ 24.         drop sortorder
+ 25.         
+.         save "`table'", replace
+ 26.         restore, preserve
+ 27. }
+ 28. }
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y ols rdrobust
+
+. tostring mean_y, force replace format(%5.3fc)
+mean_y was float now str6
+mean_y was forced to string; some loss of information
+
+. replace mean_y = "" if mean_y=="."
+(12 real changes made)
+
+. 
+. gen     table = "MVA" if strpos(var,"cod_MVA")
+(12 missing values generated)
+
+. replace table = "sa_poisoning_subst" if strpos(var,"cod_sa_poisoning_subst")
+(0 real changes made)
+
+. replace table = "sa_poisoning" if strpos(var,"cod_sa_poisoning") & !strpos(va
+> r,"cod_sa_poisoning_subst")
+variable table was str3 now str12
+(12 real changes made)
+
+. gen mdascen = strpos(var,"mda")!=0
+
+. assert !mi(table)
+
+. preserve
+
+. 
+. foreach t in "MVA" "sa_poisoning" {
+  2. 
+.         keep if table=="`t'"
+  3. 
+.         replace var = "" if strpos(var,"_ci")
+  4. 
+.         local indent "\ \ \ \"
+  5.         replace var = "`indent' " + var if strpos(var,"cod_MVA_") & !strpo
+> s(var,"mda")
+  6.         replace var = "`indent' " + var if strpos(var,"cod_sa_poisoning_su
+> bst_") & !strpos(var,"mda")
+  7.         replace var = "`indent' " + var if strpos(var,"cod_sa_poisoning_")
+>  & !strpos(var,"mda")
+  8.         
+.         replace var = subinstr(var,"cod_MVA_","",1)
+  9.         replace var = subinstr(var,"cod_sa_poisoning_subst_","",1)
+ 10.         replace var = subinstr(var,"cod_sa_poisoning_","",1)
+ 11.         
+.         * Create panels
+.         ingap 1 7
+ 12.         replace var = "Male" in 1 if mi(var)
+ 13.         replace var = "Female" in 8 if mi(var)
+ 14. 
+.         replace mdascen = 1 in 1
+ 15.         replace mdascen = 1 in 8
+ 16. 
+.         replace var = "`indent' Full sample" if var=="mda_Male" | var=="mda_F
+> emale"
+ 17.         replace var = subinstr(var,"_Male","",1) if mdascen==1 
+ 18.         replace var = subinstr(var,"_Female","",1) if mdascen==1 
+ 19.         clean_varnames var
+ 20.         
+.         * Label variables
+.         label var ols "OLS"
+ 21.         label var rdrobust "MSE optimal"
+ 22.         label var mean_y "Mean"
+ 23.         label var var "Subgroup"
+ 24.         drop table
+ 25. 
+.         if "`t'"=="MVA" local outcome "motor vehicle fatalities"
+ 26.         else if "`t'"=="sa_poisoning" local outcome "poisoning deaths"
+ 27.         local name = lower("`t'")
+ 28. 
+.         * All table have same footnote
+.         local fn "Notes: This table reports estimates of \(\beta\) from equat
+> ion (\ref{E - RD1}) for different subgroups. The dependent variable is deaths
+>  per 100,000 person-years. Column (1) reports means of the dependent variable
+>  one year before reaching the minimum driving age (MDA). `fn_col2_ols' `fn_co
+> l3_mse' `fn_asterisk'"
+ 29.         
+.         * Heterogeneity by state MDA table
+.         local title "Effect of driving eligibility on `outcome' by state mini
+> mum driving age"
+ 30.         local headerlines "& & \multicolumn{2}{c}{RD estimate}" "\cmidrule
+> (lr){3-4}"
+ 31.         texsave var-rdrobust if mdascen==1 using "$Driving/results/tables/
+> rd_subgroup_mda_`name'.tex", varlabels marker("tab:rd_`name'_heterogeneity_md
+> a") headersep(2ex) headerlines("`headerlines'") title("`title'") footnote("`f
+> n'", size(scriptsize)) size(footnotesize) `texsave_settings'        
+ 32.         
+.         restore, preserve
+ 33. }
+(12 observations deleted)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12 observations deleted)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. restore, not
+
+. 
+. *****************************************************************************
+> ****************
+. * Effect of driving eligibility on mortality using different bandwidth select
+> ion procedures
+. *****************************************************************************
+> ****************
+. 
+. * Mortality RD estimates for robustness checks
+. use "$Driving/results/intermediate/mortality_rd_robustness.dta", clear
+
+. keep if !mi(bwselection)
+(27 observations deleted)
+
+. drop order_poly bw bw_bias
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. replace coef = b_conv
+(36 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str6
+ci_lower was forced to string; some loss of information
+ci_upper was float now str4
+ci_upper was forced to string; some loss of information
+
+. replace belowbw=round(belowbw, 1)
+(36 real changes made)
+
+. replace abovebw=round(abovebw, 1)
+(36 real changes made)
+
+. gtostring belowbw abovebw, force replace sigfig(1)
+belowbw was float now str2
+abovebw was float now str2
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. gen bw= "--" + belowbw + "/+" + abovebw
+
+. replace bw= "\(\pm\)" + abovebw if inlist(bwselection, "mserd", "cerrd")
+variable bw was str8 now str9
+(18 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. foreach y in sa_poisoning MVA any {
+  2. qui foreach scen in "Female" "Male" "All" {
+  3. 
+.         * MSE-optimal common
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="mserd", name(mserd) `reg_settings'
+  4.         
+.         keep if inlist(var,"Robust_coef","ci","bw")
+  5.         replace var = "`y'_`scen'" if var=="Robust_coef"
+  6.         replace var = "`y'_`scen'_ci" if var=="ci"
+  7.         replace var = "`y'_`scen'_bw" if var=="bw"
+  8.         if `run_no'==1 append using "`table'"
+  9.         gen sortorder = _n
+ 10.         local run_no = 1        
+ 11.         save "`table'", replace
+ 12.         restore, preserve
+ 13. 
+.         * MSE-optimal twoway
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="msetwo", name(msetwo) `reg_settings'
+ 14.         keep if inlist(var,"Robust_coef","ci","bw")
+ 15.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 16.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 17.         replace var = "`y'_`scen'_bw" if var=="bw"
+ 18.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 19.         save "`table'", replace
+ 20.         restore, preserve
+ 21.         
+.         * CER-optimal common
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="cerrd", name(cerrd) `reg_settings'
+ 22.         keep if inlist(var,"Robust_coef","ci","bw")
+ 23.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 24.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 25.         replace var = "`y'_`scen'_bw" if var=="bw"
+ 26.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 27.         save "`table'", replace
+ 28.         restore, preserve
+ 29. 
+.         * CER-optimal two
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & bwselection=="certwo", name(certwo) `reg_settings'
+ 30.         keep if inlist(var,"Robust_coef","ci","bw")
+ 31.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 32.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 33.         replace var = "`y'_`scen'_bw" if var=="bw"
+ 34.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 35.         save "`table'", replace
+ 36.         restore, preserve
+ 37.         
+.         * Mean (same for different BW selection methods)
+.         keep if scenario=="`scen'" & y=="cod_`y'" & bwselection=="mserd"
+ 38.         keep mean_y
+ 39.         gen var = "`y'_`scen'"
+ 40.         merge 1:m var using "`table'", assert(match using) nogenerate   
+ 41.         sort sortorder
+ 42.         drop sortorder
+ 43.         
+.         save "`table'", replace
+ 44.         restore, preserve
+ 45. }       
+ 46. }
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y mserd msetwo cerrd certwo
+
+. gtostring mean_y, force replace sigfig(3)
+mean_y was float now str4
+mean_y was forced to string; some loss of information
+
+. replace mean_y = "" if mean_y=="."
+(0 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_ci")
+(9 real changes made)
+
+. replace var = "" if strpos(var,"_bw")
+(9 real changes made)
+
+. replace var = subinstr(var,"MVA_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"sa_poisoning_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"any_","",1)
+(3 real changes made)
+
+. clean_varnames var
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str22 now str30
+(9 real changes made)
+
+. 
+. * Create panels
+. ingap 1 10 19 
+
+. replace var = "A. All deaths" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Motor vehicle fatalities" in 11 if mi(var)
+(1 real change made)
+
+. replace var = "C. Poisoning deaths" in 21 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var mserd "MSE optimal (1)"
+
+. label var msetwo "MSE optimal (2)"
+
+. label var cerrd "CER optimal (1)"
+
+. label var certwo "CER optimal (2)"
+
+. label var mean_y "Mean"
+
+. label var var "Subgroup"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on mortality using different bandw
+> idth selection procedures"
+
+. local headerlines "& & & \multicolumn{2}{c}{RD estimate}" "\cmidrule(lr){3-6}
+> "
+
+. local fn "Notes: The dependent variable is deaths per 100,000 person-years. C
+> olumn (1) reports means of the dependent variable one year before reaching th
+> e minimum driving age (MDA). Columns (2)--(5) report estimates of \(\beta\) f
+> rom equation (\ref{E - RD1}) using different bandwidths. The MSE-optimal meth
+> od selects a bandwidth that minimizes the mean squared error (MSE) of the poi
+> nt estimator. The coverage error rate (CER) optimal method selects a bandwidt
+> h that minimizes the asymptotic CER of the robust bias-corrected confidence i
+> nterval.  Column (2) reports estimates from our preferred specification, MSE 
+> optimal (1), which selects one common bandwidth on each side of the cutoff. C
+> olumns (3)--(5) report estimates using different bandwidth selection procedur
+> es: MSE optimal with different bandwidths on each side of the cutoff, CER opt
+> imal with one common bandwidth, and CER optimal with different bandwidths on 
+> each side of the cutoff. `fn_bracket' The selected bandwidths (rounded to the
+>  nearest month) are reported below the confidence interval. `fn_asterisk'"
+
+. 
+. texsave using "$Driving/results/tables/rd_mortality_altbws.tex", varlabels ma
+> rker("tab:rd_mortality_altbws") size(scriptsize) align(lCcCcCc) headerlines("
+> `headerlines'") bold("A. " "B. " "C. ") title("`title'") hlines(1 11 21)  foo
+> tnote("`fn'", size(scriptsize)) `texsave_settings'
+
+. 
+. *****************************************************************************
+> ***********
+. * Effect of driving eligibility on mortality using different polynomial appro
+> ximations
+. *****************************************************************************
+> ***********
+. 
+. * Mortality RD estimates for robustness checks
+. use "$Driving/results/intermediate/mortality_rd_robustness.dta", clear
+
+. drop if mi(order_poly)
+(36 observations deleted)
+
+. 
+. * For rdrobust, we will use the point estimate from "conventional" estimate a
+> nd inference from "robust" bias-correction
+. replace coef = b_conv
+(27 real changes made)
+
+. 
+. * Variable formatting
+. gtostring ci_lower ci_upper, force replace sigfig(3)
+ci_lower was float now str5
+ci_lower was forced to string; some loss of information
+ci_upper was float now str4
+ci_upper was forced to string; some loss of information
+
+. gen ci = "[" + ci_lower + ", " + ci_upper + "]"
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. foreach y in sa_poisoning MVA any {
+  2. qui foreach scen in "Female" "Male" "All" {
+  3. 
+.         * MSE-optimal linear
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & order_poly==1, name(linear) `reg_settings'
+  4.         keep if inlist(var,"Robust_coef","ci")
+  5.         replace var = "`y'_`scen'" if var=="Robust_coef"
+  6.         replace var = "`y'_`scen'_ci" if var=="ci"
+  7.         if `run_no'==1 append using "`table'"
+  8.         gen sortorder = _n
+  9.         local run_no = 1        
+ 10.         save "`table'", replace
+ 11.         restore, preserve
+ 12. 
+.         * MSE-optimal quadratic
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & order_poly==2, name(quadratic) `reg_settings'
+ 13.         keep if inlist(var,"Robust_coef","ci")
+ 14.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 15.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 16.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 17.         save "`table'", replace
+ 18.         restore, preserve
+ 19.         
+.         * MSE-optimal cubic
+.         regsave_tbl if scenario=="`scen'" & y=="cod_`y'" & rdspec=="rdrobust"
+>  & order_poly==3, name(cubic) `reg_settings'
+ 20.         keep if inlist(var,"Robust_coef","ci")
+ 21.         replace var = "`y'_`scen'" if var=="Robust_coef"
+ 22.         replace var = "`y'_`scen'_ci" if var=="ci"
+ 23.         merge 1:m var using "`table'", assert(match using) nogenerate
+ 24.         save "`table'", replace
+ 25.         restore, preserve
+ 26.         
+.         * Mean (same for different orders of polynomials)
+.         keep if scenario=="`scen'" & y=="cod_`y'" & order_poly==1
+ 27.         keep mean_y
+ 28.         gen var = "`y'_`scen'"
+ 29.         merge 1:m var using "`table'", assert(match using) nogenerate   
+ 30.         sort sortorder
+ 31.         drop sortorder
+ 32.         
+.         save "`table'", replace
+ 33.         restore, preserve
+ 34. }       
+ 35. }
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y linear quadratic cubic
+
+. gtostring mean_y, force replace sigfig(3)
+mean_y was float now str4
+mean_y was forced to string; some loss of information
+
+. replace mean_y = "" if mean_y=="."
+(0 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_ci")
+(9 real changes made)
+
+. replace var = "" if strpos(var,"_bw")
+(0 real changes made)
+
+. replace var = subinstr(var,"MVA_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"sa_poisoning_","",1)
+(3 real changes made)
+
+. replace var = subinstr(var,"any_","",1)
+(3 real changes made)
+
+. clean_varnames var
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str22 now str30
+(9 real changes made)
+
+. 
+. * Create panels
+. ingap 1 7 13 
+
+. replace var = "A. All deaths" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Motor vehicle fatalities" in 8 if mi(var)
+(1 real change made)
+
+. replace var = "C. Poisoning deaths" in 15 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var linear "Linear"
+
+. label var quadratic "Quadratic"
+
+. label var cubic "Cubic"
+
+. label var mean_y "Mean"
+
+. label var var "Subgroup"
+
+. 
+. * Output table
+. local title "Effect of driving eligibility on mortality using different polyn
+> omial approximations"
+
+. local headerlines "& & & \multicolumn{1}{c}{RD estimate}" "\cmidrule(lr){3-5}
+> "
+
+. local fn "Notes: The dependent variable is deaths per 100,000 person-years. C
+> olumn (1) reports means of the dependent variable one year before reaching th
+> e minimum driving age (MDA). Columns (2)--(4) report estimates of \(\beta\) f
+> rom equation (\ref{E - RD1}) using different polynomial approximations: linea
+> r (our preferred specification), quadratic, and cubic. `fn_bracket' `fn_aster
+> isk'"
+
+. 
+. texsave using "$Driving/results/tables/rd_mortality_polys.tex", varlabels mar
+> ker("tab:rd_mortality_polys") size(footnotesize) align(lCcCcCc) headerlines("
+> `headerlines'") bold("A. " "B. " "C. ") title("`title'") hlines(1 8 15)  foot
+> note("`fn'", size(scriptsize)) `texsave_settings'
+
+. 
+. ***********************************************************************
+. * OLS: Effect of driving eligibility on teenage driving and mortality
+. ***********************************************************************
+. 
+. * Main mortality RD estimates
+. use "$Driving/results/intermediate/mortality_rd.dta", clear
+
+. 
+. * Add Health RD estimates
+. append using "$Driving/results/intermediate/addhealth_rd.dta"
+
+. replace scenario = "All" if mi(scenario)
+(0 real changes made)
+
+. 
+. keep if inlist(var,"1.post")
+(482 observations deleted)
+
+. 
+. * Adjusted p-values
+. merge 1:1 var y rdspec scenario using "$Driving/results/intermediate/adjusted
+> p.dta", nogenerate keep(match master)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                            21
+        from master                        21  
+        from using                          0  
+
+    Matched                                39  
+    -----------------------------------------
+
+. 
+. * Remove "cod_" from the variable y
+. replace y = subinstr(y,"cod_","",1)
+(51 real changes made)
+
+. 
+. preserve
+
+. 
+. local run_no = 0
+
+. qui foreach y in extother homicide sa_other sa_drowning sa_poisoning_gas sa_p
+> oisoning_subst sa_poisoning sa_firearms sa MVA external internal any VehicleM
+> iles_265 VehicleMiles_150 DriverLicense {
+
+. 
+. restore, not
+
+. use "`table'", clear
+
+. drop if inlist(var,"DriverLicense_adjp","VehicleMiles_150_adjp","VehicleMiles
+> _265_adjp")
+(3 observations deleted)
+
+. 
+. ***
+. * Table formatting
+. ***
+. 
+. order var mean_y_All full mean_y_Male male mean_y_Female female
+
+. gtostring mean_y*, force replace sigfig(3)
+mean_y_All was float now str4
+mean_y_All was forced to string; some loss of information
+mean_y_Male was float now str5
+mean_y_Male was forced to string; some loss of information
+mean_y_Female was float now str5
+mean_y_Female was forced to string; some loss of information
+
+. replace mean_y_All    = "" if mean_y_All=="."
+(0 real changes made)
+
+. replace mean_y_Male   = "" if mean_y_Male=="."
+(0 real changes made)
+
+. replace mean_y_Female = "" if mean_y_Female=="."
+(0 real changes made)
+
+. 
+. foreach v in male female full {
+  2.         replace `v' = "\(<\)0.0001" if real(`v')<0.0001 & strpos(var,"adjp
+> ")
+  3.         replace `v' = "\(<\)0.001" if real(`v')<0.001 & strpos(var,"adjp")
+  4.         replace `v' = "\(<\)0.01" if real(`v')<0.01 & strpos(var,"adjp")  
+>       
+  5.         replace `v' = "\{"+ `v' +"\}" if strpos(var,"adjp")
+  6.         label var `v' "RD"
+  7. }
+(2 real changes made)
+(0 real changes made)
+(1 real change made)
+(13 real changes made)
+(3 real changes made)
+(0 real changes made)
+(1 real change made)
+(13 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(13 real changes made)
+
+. 
+. replace var = "" if strpos(var,"_stderr")
+(16 real changes made)
+
+. replace var = "" if strpos(var,"_adjp")
+(13 real changes made)
+
+. replace var = subinstr(var,"_coef","",1)
+(16 real changes made)
+
+. clean_varnames var
+(1 real change made)
+(1 real change made)
+variable var was str25 now str30
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+variable var was str30 now str37
+(1 real change made)
+variable var was str37 now str55
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace var = "\addlinespace[1ex] " + var if !mi(var)
+variable var was str55 now str74
+(16 real changes made)
+
+. 
+. * Create panels
+. ingap 1 7
+
+. replace var = "A. Driving" in 1 if mi(var)
+(1 real change made)
+
+. replace var = "B. Mortality" in 8 if mi(var)
+(1 real change made)
+
+. 
+. * Label variables
+. label var full "RD"
+
+. label var male "RD"
+
+. label var female "RD"
+
+. label var mean_y_All "Mean"
+
+. label var mean_y_Male "Mean"
+
+. label var mean_y_Female "Mean"
+
+. label var var "Outcome variable"
+
+. 
+. * Output table
+. local title "OLS estimates of effect of driving eligibility on teenage drivin
+> g and mortality"
+
+. local headerlines "& \multicolumn{2}{c}{Full sample} & \multicolumn{2}{c}{Mal
+> e} & \multicolumn{2}{c}{Female}" "\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmid
+> rule(lr){6-7}"
+
+. local fn "Notes: This table replicates Table \ref{tab:rd_mortality} but uses 
+> an OLS estimator with a bandwidth of 24 months instead of an MSE-optimal esti
+> mator. Columns (1), (3), and (5) report means of the dependent variable one y
+> ear before reaching the minimum driving age (MDA). Columns (2), (4), and (6) 
+> report OLS estimates of \(\beta\) from equation (\ref{E - RD1}). Robust stand
+> ard errors are reported in parentheses.  `fn_asterisk' `fn_familyp'"
+
+. 
+. texsave using "$Driving/results/tables/rd_mortality_ols.tex", size(scriptsize
+> ) align(lCcCcCc) headerlines("`headerlines'") varlabels marker("tab:rd_mortal
+> ity_ols")  bold("A. " "B. ") title("`title'") hlines(1 8) footnote("`fn'", si
+> ze(scriptsize)) `texsave_settings'
+
+. 
+. 
+. ** EOF
+. 
+end of do-file
+
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time: 18 Nov 2021 10:36:42
+
+. log close
+      name:  <unnamed>
+       log:  /Users/koren/Documents/workspace/ecbs-6233-reif-julian-driving/scr
+> ipts/logs/2021.11.18-10.35.23.log.txt
+  log type:  text
+ closed on:  18 Nov 2021, 10:36:42
+-------------------------------------------------------------------------------
+
+. 
+. ** EOF
+. 
+end of do-file
