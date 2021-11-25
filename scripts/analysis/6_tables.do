@@ -25,10 +25,6 @@ local fn_col2_ols "Column (2) reports OLS estimates from a model employing a ban
 local fn_col3_mse "Column (3) reports MSE-optimal estimates and reports robust, bias-corrected 95\% confidence intervals in brackets."
 
 
-* Data tables for Add Health, MDA laws, and ICD codes were created manually
-copy "data/add_health/appendix_data_addhealth.tex" "results/tables/appendix_data_addhealth.tex", replace
-copy "data/mda/appendix_data_mda.tex" "results/tables/appendix_data_mda.tex", replace
-copy "data/icd_codes/appendix_data_icd_codes.tex" "results/tables/appendix_data_icd_codes.tex", replace
 
 
 
