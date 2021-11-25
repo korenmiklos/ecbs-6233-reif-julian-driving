@@ -2,8 +2,11 @@ STATA = stata -b do
 CONFIG = scripts/programs/_config.do
 FIGURE_UTILS = scripts/programs/clean_var_names.do
 SCENARIOS = all mda192 mda_not192 mda192_female mda_not192_female mda192_male mda_not192_male male female
+TABLES = rd_mortality_ols rd_mortality_polys appendix_data_addhealth appendix_data_mda appendix_data_icd_codes
 
-all: results/tables/rd_mortality_ols.tex results/tables/appendix_data_addhealth.tex results/tables/appendix_data_mda.tex results/tables/appendix_data_icd_codes.tex
+all: $(foreach table,$(TABLES),results/tables/$(table).tex)
+results/tables/rd_mortality_polys.tex: scripts/analysis/rd_mortality_polys.do $(CONFIG) $(FIGURE_UTILS) results/intermediate/mortality_rd_robustness.dta
+	$(STATA) $<
 results/tables/rd_mortality_ols.tex: scripts/analysis/rd_mortality_ols.do $(CONFIG) $(FIGURE_UTILS) results/intermediate/mortality_rd.dta results/intermediate/addhealth_rd.dta results/intermediate/adjustedp.dta
 	$(STATA) $<
 # Data tables for Add Health, MDA laws, and ICD codes were created manually
